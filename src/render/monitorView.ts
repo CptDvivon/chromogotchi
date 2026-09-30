@@ -26,16 +26,11 @@ export class MonitorView {
   onFps?: (fps: number) => void;
   private frames = 0;
   private inspectAngle: number | null = null;
-  /** Infrared illuminator on the camera, only used in night vision. */
-  private irLamp = new THREE.PointLight(0xffffff, 3, 6, 1);
   private fpsT = 0;
 
   constructor(private canvas: HTMLCanvasElement, settings: PipelineSettings) {
     this.pipeline = new PixelPipeline(canvas, settings);
     this.den = createDen();
-    this.irLamp.visible = false;
-    this.camera.add(this.irLamp);
-    this.den.scene.add(this.camera);
     this.camera.position.set(0.05, 1.0, 1.85);
     this.camera.lookAt(0, 0.33, -0.2);
     // Dev: ?inspect=<angle in degrees> frames the pet up close and freezes it.
@@ -77,8 +72,6 @@ export class MonitorView {
 
   setLights(on: boolean) {
     this.den.setLights(on);
-    this.pipeline.ir = !on;
-    this.irLamp.visible = !on;
   }
 
   updateSettings(s: PipelineSettings) {

@@ -75,7 +75,7 @@
   <section class="monitor">
     <canvas bind:this={canvas}></canvas>
     <div class="osd top">
-      <span><span class="rec">●</span> REC CAM-01{lightsOn ? '' : ' // IR'}</span>
+      <span><span class="rec">●</span> REC CAM-01</span>
       <span>{clock}</span>
     </div>
     {#if genome}

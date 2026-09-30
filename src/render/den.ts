@@ -226,8 +226,10 @@ export function createDen(): Den {
       lightsOn = on;
       fluoro.visible = on;
       tube.material.color.set(on ? PALETTE.whiteHot : PALETTE.soot);
-      ambient.intensity = on ? 0.45 : 0.3;
-      bulb.visible = on;
+      // Lights off dims the room rather than blacking it out: the bulb
+      // drops to a low glow and the neon outside takes over.
+      ambient.intensity = on ? 0.45 : 0.36;
+      bulb.intensity = on ? 2.2 : 0.85;
     },
     update(time) {
       rainMat.uniforms.time.value = time;

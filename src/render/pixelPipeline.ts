@@ -25,7 +25,6 @@ const quantizeFrag = /* glsl */ `
   uniform vec3 palette[${PALETTE_LIST.length}];
   uniform float ditherOn;
   uniform float quantizeOn;
-  uniform float irOn;
   varying vec2 vUv;
 
   float bayer4(vec2 p) {
@@ -41,11 +40,6 @@ const quantizeFrag = /* glsl */ `
 
   void main() {
     vec3 c = toSRGB(clamp(texture2D(tScene, vUv).rgb, 0.0, 1.0));
-    if (irOn > 0.5) {
-      // Night-vision CCTV: luminance only, boosted, tinted to the phosphor ramp.
-      float l = clamp(pow(dot(c, vec3(0.3, 0.59, 0.11)) * 1.9, 0.8), 0.0, 1.0);
-      c = mix(vec3(0.04, 0.02, 0.02), vec3(1.0, 0.62, 0.3), l) * (0.35 + 0.75 * l);
-    }
     if (quantizeOn < 0.5) { gl_FragColor = vec4(c, 1.0); return; }
     c += ditherOn * bayer4(floor(vUv * lowSize)) * 0.11;
     float best = 1e9; vec3 pick = palette[0];
@@ -117,8 +111,6 @@ export class PixelPipeline {
   private postScene = new THREE.Scene();
   private postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   settings: PipelineSettings;
-  /** Night-vision mode (lights off). */
-  ir = false;
   lowSize = new THREE.Vector2(1, 1);
 
   constructor(canvas: HTMLCanvasElement, settings: PipelineSettings) {
@@ -143,7 +135,7 @@ export class PixelPipeline {
       vertexShader: fullscreenVert, fragmentShader: quantizeFrag,
       uniforms: {
         tScene: { value: this.low.texture }, lowSize: { value: this.lowSize },
-        palette: { value: palette }, ditherOn: { value: 1 }, quantizeOn: { value: 1 }, irOn: { value: 0 },
+        palette: { value: palette }, ditherOn: { value: 1 }, quantizeOn: { value: 1 },
       },
       depthTest: false, depthWrite: false,
     });
@@ -179,7 +171,6 @@ export class PixelPipeline {
 
     this.quantMat.uniforms.ditherOn.value = s.dither ? 1 : 0;
     this.quantMat.uniforms.quantizeOn.value = s.quantize ? 1 : 0;
-    this.quantMat.uniforms.irOn.value = this.ir ? 1 : 0;
     this.quad.material = this.quantMat;
     r.setRenderTarget(this.quant);
     r.render(this.postScene, this.postCam);

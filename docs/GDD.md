@@ -269,8 +269,9 @@ Tamagotchi trademark, so revisit if it ever goes public.)*
 Stained floor, mattress on the floor, food bowl, waste accumulating, one harsh
 buzzing fluorescent tube, rain-streaked window with a flickering neon sign
 outside spilling magenta/cyan.
-**Lights off = night-vision CCTV ("IR") mode:** luminance-only image tinted to
-the red-orange phosphor ramp, lit by an infrared lamp on the camera.
+**Lights off = dimmed room**, not black: the tube goes dark, the bulb drops to
+a low glow and the neon spill dominates. (A night-vision mode was tried and
+rejected — it didn't read as "lights off".)
 Pet moves freely within the room (simple wander/target movement).
 
 **Palette:** ~24 curated colours — grime (blue-green blacks, rust), flesh
