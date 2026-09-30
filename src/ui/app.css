@@ -1,0 +1,40 @@
+:root {
+  --bg: #0b0708;
+  --panel: #150d0c;
+  --bezel: #1d1413;
+  --phosphor: #ff8c32;
+  --phosphor-hot: #ffb35c;
+  --phosphor-dim: #a8321e;
+  --cyan: #29f0ff;
+  --magenta: #ff2e88;
+  --white-hot: #fff6e0;
+  --glow: 0 0 6px rgba(255, 120, 40, 0.55);
+  --font-label: 'Silkscreen', monospace;
+  --font-term: 'VT323', monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--phosphor);
+  font-family: var(--font-term);
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#app { height: 100%; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

@@ -14,7 +14,7 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | 5 | Care loop, needs, life stages, death | ✅ |
 | 6 | Tech architecture & libraries | ✅ |
 | 7 | Art / audio / UI style guide | ✅ |
-| 8 | MVP milestones | 🟡 |
+| 8 | MVP milestones | ✅ |
 
 ---
 
@@ -248,10 +248,10 @@ decay (hours, not minutes). A small push server can come later.
 sound; real haptics only if wrapped with Capacitor later). Render ~30 fps idle,
 pause when hidden. Audio unlocks on first tap.
 
-**Hosting / running on the iPhone:** the installed PWA caches the whole game
+**Hosting / running on the iPhone:** GitHub Pages from a public repo (owner's
+choice), deployed on push to `main`. The installed PWA caches the whole game
 and runs fully offline on the phone; a host is only needed for first install
-and updates. Proposed host: Cloudflare Pages (free, works with private repos,
-per-branch preview URLs for testing milestones on the phone).
+and updates.
 
 ---
 
@@ -268,7 +268,9 @@ Tamagotchi trademark, so revisit if it ever goes public.)*
 **The den:** a squat apartment — **no cage**; the pet roams a small room.
 Stained floor, mattress on the floor, food bowl, waste accumulating, one harsh
 buzzing fluorescent tube, rain-streaked window with a flickering neon sign
-outside spilling magenta/cyan. Lights off = neon spill only.
+outside spilling magenta/cyan.
+**Lights off = night-vision CCTV ("IR") mode:** luminance-only image tinted to
+the red-orange phosphor ramp, lit by an infrared lamp on the camera.
 Pet moves freely within the room (simple wander/target movement).
 
 **Palette:** ~24 curated colours — grime (blue-green blacks, rust), flesh
@@ -293,15 +295,15 @@ sound toggle.
 
 ---
 
-## 8. MVP milestones 🟡
+## 8. MVP milestones ✅
 
 Each milestone is pushed with a preview URL; the owner tests on iPhone and
 approves before the next one starts.
 
 | # | Milestone | Done when |
 |---|-----------|-----------|
-| M0 | Project setup | Vite + TS + Svelte + PWA, Vitest, debug panel shell, deploy pipeline |
-| M1 | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
+| M0 ✅ | Project setup | Vite + TS + Svelte + PWA, Vitest, debug panel shell, deploy pipeline |
+| M1 🟡 | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
 | M2 | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
 | M3 | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
 | M4 | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
