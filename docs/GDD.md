@@ -10,8 +10,8 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | 1 | Vision & pillars | ✅ |
 | 2 | Scope decision: MVP = classic Tamagotchi loop | ✅ |
 | 3 | Acquisition & hatching (pods, rarity) | ✅ |
-| 4 | The creature: genome & procedural generation | 🟡 |
-| 5 | Care loop, needs, life stages, death | ⬜ |
+| 4 | The creature: genome & procedural generation | ✅ |
+| 5 | Care loop, needs, life stages, death | 🟡 |
 | 6 | Tech architecture & libraries | ⬜ |
 | 7 | Art / audio / UI style guide | ⬜ |
 | 8 | MVP milestones | ⬜ |
@@ -103,12 +103,12 @@ genomes into a new pod with mutation chance.
 
 ---
 
-## 4. The creature 🟡
+## 4. The creature ✅
 
 ### Structure: three layers
 1. **Species template** — a real animal, hand-authored in code (skeleton,
    proportions, silhouette). Commons are realistic street animals.
-   *Proposed MVP species: cat, dog, rat* (pending confirmation).
+   **MVP species: cat, dog, rat, raccoon.**
 2. **Genetic variation** — the genome varies the animal *within* its species,
    like real breeds: size, bulk, leg/tail/ear/snout length, fur length,
    coat colour and pattern, eye colour, scars.
@@ -151,3 +151,28 @@ which reads better through the pixel filter than fine gore detail would.
 - Cat/dog/rat are recognizable silhouettes, so errors are more visible than on
   invented creatures — the pixel filter helps; the first style test will prove
   or disprove it.
+
+### Rarity math (rarity is emergent, not a label)
+Rarity is *computed from the genome*, so the tier always tells the truth
+about how mutated the animal is.
+
+1. **Mutation count** ~ Poisson(λ). λ ("exposure") is set by the pod's source.
+2. Each mutation draws a **severity** from a weighted table:
+   minor = 1 (heterochromia, extra toe) · visible = 3 (third eye, second tail) ·
+   horror = 6 (extra limb, split jaw) · chimera = 10 · wrongness = 15.
+   Each source also has a **severity cap**.
+3. **Statistical outliers** add load too: any gene beyond ±2.5σ on the bell
+   curve (a giant, a runt, a freakishly long tail) adds +1.
+4. **Mutation load** M = sum of severities + outlier points.
+   Tier thresholds: 0 Common · 1–2 Uncommon · 3–5 Rare · 6–9 Epic ·
+   10–14 Legendary · 15+ Mythical.
+
+**Starter pods:** λ = 0.12, cap = minor only → about **11% Uncommon per pod,
+≈ 30% chance at least one of the three starters is Uncommon**. Never higher.
+Future sources (gene dealer, splicing) simply raise λ and the cap; splicing
+derives λ from the parents' mutation loads.
+
+**Tooling:** a debug seed field / reroll button, and a simulation script that
+generates 100k genomes and prints the tier distribution, used to tune the numbers.
+
+**Starter selection:** 3 random pods (species random, may repeat).
