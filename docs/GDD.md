@@ -9,8 +9,8 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 |---|------|--------|
 | 1 | Vision & pillars | ✅ |
 | 2 | Scope decision: MVP = classic Tamagotchi loop | ✅ |
-| 3 | Acquisition & hatching (pods, rarity) | 🟡 |
-| 4 | The creature: genome & procedural generation | ⬜ |
+| 3 | Acquisition & hatching (pods, rarity) | ✅ |
+| 4 | The creature: genome & procedural generation | 🟡 |
 | 5 | Care loop, needs, life stages, death | ⬜ |
 | 6 | Tech architecture & libraries | ⬜ |
 | 7 | Art / audio / UI style guide | ⬜ |
@@ -67,3 +67,36 @@ choose a starter → hatch → meet your generated pet → care for it.
 - Implants (flesh vs chrome), drift, den idle layer, surgery minigame,
   crafting, fixer contracts, mini-games, legacy/memorial.
 - Buying, splicing/combining starters; rarities above Common.
+
+---
+
+## 3. Acquisition & hatching ✅
+
+**Vat Pods** replace eggs: scratched glass canisters of murky fluid with a living
+silhouette inside, grown in back-alley labs.
+
+**Start of game:** the player chooses 1 of 3 Common pods.
+- Each pod shows a small readout screen derived from its genome (e.g.
+  `POD #7F3A  MASS: 2.4kg  ACTIVITY: ▓▓▓░░  ORIGIN: [CORRUPTED]`) and a vague
+  silhouette through fogged glass (differs by body plan).
+
+**Hatching — no timer shown.** Progress is conveyed diegetically through a
+heartbeat monitor line and the scene:
+1. **Dormant** — murky fluid, slow faint heartbeat blip.
+2. **Stirring** — silhouette twitches, bubbles, heartbeat quickens.
+3. **Breaching** — glass fogs and cracks, fluid drains, lights flicker, haptics.
+4. **Emergence** — seal bursts, steam clears, pet revealed.
+
+Total hatch time is one config value: **10 s for testing**, longer in real play.
+
+**Rarity tiers:** Common → Uncommon → Rare → Epic → Legendary → Mythical.
+- Rarity means **more exotic, not more powerful**: stranger body plans,
+  bioluminescence and rare patterns, more innate genetic traits, a slightly
+  higher growth ceiling. Common pets must never feel like trash.
+- Rarity is readable from the pod itself: Common = rusty, taped, murky;
+  Rare = clean corp lab pod with the logo scratched off; Mythical =
+  military-sealed, humming with light that shouldn't exist.
+- MVP: starters are always Common, but the generator supports all six tiers.
+
+**Later (not MVP):** buying pods from a gene dealer; **splicing** two pods'
+genomes into a new pod with mutation chance.
