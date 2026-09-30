@@ -100,3 +100,54 @@ Total hatch time is one config value: **10 s for testing**, longer in real play.
 
 **Later (not MVP):** buying pods from a gene dealer; **splicing** two pods'
 genomes into a new pod with mutation chance.
+
+---
+
+## 4. The creature 🟡
+
+### Structure: three layers
+1. **Species template** — a real animal, hand-authored in code (skeleton,
+   proportions, silhouette). Commons are realistic street animals.
+   *Proposed MVP species: cat, dog, rat* (pending confirmation).
+2. **Genetic variation** — the genome varies the animal *within* its species,
+   like real breeds: size, bulk, leg/tail/ear/snout length, fur length,
+   coat colour and pattern, eye colour, scars.
+3. **Mutation layer** — driven by rarity. The rarer the pod, the further the
+   animal drifts from what it should be.
+
+### Mutation ladder (rarity = how wrong it is, not how strong)
+| Tier | What you see |
+|------|--------------|
+| Common | A normal animal. Mangy, scarred, street-worn — but real. |
+| Uncommon | Small wrongness: heterochromia, extra toes, patchy fur, odd colouring. |
+| Rare | Visible mutation: a third eye, a second tail, bone spurs, translucent skin patches. |
+| Epic | Body horror: extra limbs, split jaw, exposed ribs, tumorous growths, glowing veins. |
+| Legendary | Chimera: two species fused (genome blend), heavy mutation. |
+| Mythical | Barely an animal: eyes where they shouldn't be, floating, wrong geometry. |
+
+**Tone:** real body horror (option B), gated by rarity — the default Common
+experience is a real animal you want to care for; the horror is the prize.
+Horror is sold through silhouette, colour (raw pinks, bone white, bile green)
+and *wrong* animation (unhinging jaws, twitches, limbs moving out of sync),
+which reads better through the pixel filter than fine gore detail would.
+
+### Genome & math
+- One seed → seeded PRNG → normalized genes.
+- **Bell-curve sampling**: most pets are average, extremes are rare.
+- **Correlated genes**: bigger → slower, hungrier; big eyes → nocturnal.
+- **Colours from a curated palette only**, never free random hues.
+- **Same genome renders every life stage** (baby = juvenile proportions).
+- **Temperament genes** (e.g. skittish, vicious, lazy, curious) drive idle
+  behaviour and care preferences.
+- Pod readout and silhouette are derived from the genome.
+- **Name** generated from the seed (designation + street name, e.g.
+  `KX-7F "Mongrel"`); player can rename.
+
+### Rendering
+- Bodies built from capsules/blobs smooth-merged into one fleshy mesh, then
+  the pixel/dither/palette pass on top.
+- All animation procedural: breathing, blinking, look-at, tail sway, gait,
+  twitches.
+- Cat/dog/rat are recognizable silhouettes, so errors are more visible than on
+  invented creatures — the pixel filter helps; the first style test will prove
+  or disprove it.
