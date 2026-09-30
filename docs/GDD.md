@@ -1,4 +1,4 @@
-# Game Design Document — Cyberpunk Tamagotchi (working title)
+# Game Design Document — CHROMOGOTCHI
 
 Living document. Each section is filled in as its planning step is agreed.
 Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
@@ -13,8 +13,8 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | 4 | The creature: genome & procedural generation | ✅ |
 | 5 | Care loop, needs, life stages, death | ✅ |
 | 6 | Tech architecture & libraries | ✅ |
-| 7 | Art / audio / UI style guide | 🟡 |
-| 8 | MVP milestones | ⬜ |
+| 7 | Art / audio / UI style guide | ✅ |
+| 8 | MVP milestones | 🟡 |
 
 ---
 
@@ -185,7 +185,7 @@ generates 100k genomes and prints the tier distribution, used to tune the number
 | Need | Drains from | Neglect looks like |
 |------|-------------|--------------------|
 | Hunger | time; faster for bigger bodies | ribs showing, lethargy |
-| Hygiene | waste accumulating in the cage | flies, grime, sickness risk |
+| Hygiene | waste accumulating on the floor | flies, grime, sickness risk |
 | Energy | being awake, play | stumbling, irritability |
 | Mood | boredom, neglect | hiding, biting, pacing |
 | Health | mostly hidden; long neglect, sickness, junk food | visible decline |
@@ -194,13 +194,13 @@ generates 100k genomes and prints the tier distribution, used to tune the number
 
 ### Actions
 - **Feed:** nutrient paste (cheap, bland) · meat scraps (good) · treats (big mood, hurts health).
-- **Clean:** hose the cage, clear waste.
+- **Clean:** clear the waste, scrub the floor.
 - **Play / pet:** finger-rub interaction; temperament decides what it likes.
 - **Lights off:** sleep; needs drain slower.
 - **Medicine:** when sick.
 - ~~Discipline~~ — dropped for MVP.
 
-Species flavour: raccoon steals food, cat ignores you, dog bonds faster, rat escapes.
+Species flavour: raccoon steals food, cat ignores you, dog bonds faster, rat hides in the walls.
 
 ### Life stages
 Hatchling → Juvenile → Adult → Elder → death of old age.
@@ -252,3 +252,58 @@ pause when hidden. Audio unlocks on first tap.
 and runs fully offline on the phone; a host is only needed for first install
 and updates. Proposed host: Cloudflare Pages (free, works with private repos,
 per-branch preview URLs for testing milestones on the phone).
+
+---
+
+## 7. Art, audio & UI style guide ✅
+
+**Title:** CHROMOGOTCHI. *(Fine for a personal project; "-gotchi" echoes Bandai's
+Tamagotchi trademark, so revisit if it ever goes public.)*
+
+**The device:** a jailbroken black-market vet-lab monitoring terminal.
+- Top ~65%: the den through a CRT monitor (scanlines, slight curvature,
+  vignette, gentle flicker). Post-effects apply to the monitor only.
+- Bottom: the device's control deck, chunky one-thumb buttons, crisp text.
+
+**The den:** a squat apartment — **no cage**; the pet roams a small room.
+Stained floor, mattress on the floor, food bowl, waste accumulating, one harsh
+buzzing fluorescent tube, rain-streaked window with a flickering neon sign
+outside spilling magenta/cyan. Lights off = neon spill only.
+Pet moves freely within the room (simple wander/target movement).
+
+**Palette:** ~24 curated colours — grime (blue-green blacks, rust), flesh
+(sickly pinks/yellows, bone white, bile green), neon magenta/cyan as accent
+and danger only. 3D renders at 180×320, nearest upscale, ordered dither.
+
+**UI:** warm red-orange phosphor terminal.
+- Primary text: hot orange-amber · secondary: dim red · background near-black.
+- Positive/info accents: cyan · critical alerts: white-hot flicker + magenta.
+- Fonts: *Silkscreen* (labels), *VT323* (terminal text), self-hosted.
+- Segmented pixel meters for needs.
+
+**Voice:** cold lab-terminal copy (`SUBJECT KX-7F // NUTRITION CRITICAL`); the
+"while you were gone" log carries dark humour.
+
+**Audio (all procedural):** ambience (rain, tube hum, city drone); SFX (CRT
+clicks, heartbeat, squelch, crunch); stylized glitched vocalizations per
+species, pitch derived from genome body size.
+
+**Accessibility:** gentle flicker (photosensitivity), reduced-motion option,
+sound toggle.
+
+---
+
+## 8. MVP milestones 🟡
+
+Each milestone is pushed with a preview URL; the owner tests on iPhone and
+approves before the next one starts.
+
+| # | Milestone | Done when |
+|---|-----------|-----------|
+| M0 | Project setup | Vite + TS + Svelte + PWA, Vitest, debug panel shell, deploy pipeline |
+| M1 | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
+| M2 | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
+| M3 | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
+| M4 | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
+| M5 | Life & death | Stages, care-shaped adult, elder, critical state, death, start over |
+| M6 | Polish | Audio, CRT transitions, install prompt, iPhone QA pass |
