@@ -11,8 +11,8 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | 2 | Scope decision: MVP = classic Tamagotchi loop | ✅ |
 | 3 | Acquisition & hatching (pods, rarity) | ✅ |
 | 4 | The creature: genome & procedural generation | ✅ |
-| 5 | Care loop, needs, life stages, death | 🟡 |
-| 6 | Tech architecture & libraries | ⬜ |
+| 5 | Care loop, needs, life stages, death | ✅ |
+| 6 | Tech architecture & libraries | 🟡 |
 | 7 | Art / audio / UI style guide | ⬜ |
 | 8 | MVP milestones | ⬜ |
 
@@ -176,3 +176,47 @@ derives λ from the parents' mutation loads.
 generates 100k genomes and prints the tier distribution, used to tune the numbers.
 
 **Starter selection:** 3 random pods (species random, may repeat).
+
+---
+
+## 5. Care loop ✅
+
+### Needs (0–100, decay in real time; offline time is caught up on open)
+| Need | Drains from | Neglect looks like |
+|------|-------------|--------------------|
+| Hunger | time; faster for bigger bodies | ribs showing, lethargy |
+| Hygiene | waste accumulating in the cage | flies, grime, sickness risk |
+| Energy | being awake, play | stumbling, irritability |
+| Mood | boredom, neglect | hiding, biting, pacing |
+| Health | mostly hidden; long neglect, sickness, junk food | visible decline |
+
+**Bond** grows slowly with consistent care (lightly used in MVP; foundation for drift later).
+
+### Actions
+- **Feed:** nutrient paste (cheap, bland) · meat scraps (good) · treats (big mood, hurts health).
+- **Clean:** hose the cage, clear waste.
+- **Play / pet:** finger-rub interaction; temperament decides what it likes.
+- **Lights off:** sleep; needs drain slower.
+- **Medicine:** when sick.
+- ~~Discipline~~ — dropped for MVP.
+
+Species flavour: raccoon steals food, cat ignores you, dog bonds faster, rat escapes.
+
+### Life stages
+Hatchling → Juvenile → Adult → Elder → death of old age.
+- **Care shapes the adult form:** well-kept → strong, glossy adult; neglected →
+  scrawny, scarred, mangy. The genome sets potential; care sets outcome.
+- **Test lifespan: 5 days total** (Hatchling 6 h · Juvenile 1 d · Adult 3 d ·
+  Elder 18 h). Target for real play later: 2–3 weeks. Stage durations are config.
+- A dev time-scale control lets us test a whole life in minutes.
+
+### Death (permadeath)
+- **Old age**, or **health reaching zero** from prolonged neglect / untreated sickness.
+- Decline is always visible first. At health 0 the pet enters a **critical state
+  with a grace period**; any proper care during it pulls the pet back.
+- **"While you were gone" report** on every open summarizes what happened.
+
+### Notifications
+Real web push needs a server even for an installed PWA (Safari can't schedule
+local notifications). **MVP ships without notifications**; hence slow, forgiving
+decay (hours, not minutes). A small push server can come later.
