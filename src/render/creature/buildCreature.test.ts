@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generateGenome } from '../../core/genome';
-import { SOURCES } from '../../core/mutations';
+import { SOURCES, type Source } from '../../core/mutations';
 import { buildCreature } from './buildCreature';
 
-function seedFor(pred: (g: ReturnType<typeof generateGenome>) => boolean, source = SOURCES.starter) {
+function seedFor(pred: (g: ReturnType<typeof generateGenome>) => boolean, source: Source = SOURCES.starter) {
   for (let i = 0; i < 20000; i++) if (pred(generateGenome(`T${i}`, source))) return `T${i}`;
   throw new Error('no seed');
 }
