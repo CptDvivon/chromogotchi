@@ -12,8 +12,8 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | 3 | Acquisition & hatching (pods, rarity) | ✅ |
 | 4 | The creature: genome & procedural generation | ✅ |
 | 5 | Care loop, needs, life stages, death | ✅ |
-| 6 | Tech architecture & libraries | 🟡 |
-| 7 | Art / audio / UI style guide | ⬜ |
+| 6 | Tech architecture & libraries | ✅ |
+| 7 | Art / audio / UI style guide | 🟡 |
 | 8 | MVP milestones | ⬜ |
 
 ---
@@ -87,7 +87,7 @@ heartbeat monitor line and the scene:
 3. **Breaching** — glass fogs and cracks, fluid drains, lights flicker, haptics.
 4. **Emergence** — seal bursts, steam clears, pet revealed.
 
-Total hatch time is one config value: **10 s for testing**, longer in real play.
+Total hatch time is one config value: **1 minute for testing**, longer in real play.
 
 **Rarity tiers:** Common → Uncommon → Rare → Epic → Legendary → Mythical.
 - Rarity means **more exotic, not more powerful**: stranger body plans,
@@ -220,3 +220,35 @@ Hatchling → Juvenile → Adult → Elder → death of old age.
 Real web push needs a server even for an installed PWA (Safari can't schedule
 local notifications). **MVP ships without notifications**; hence slow, forgiving
 decay (hours, not minutes). A small push server can come later.
+
+---
+
+## 6. Tech architecture ✅
+
+| Area | Choice |
+|------|--------|
+| Language / build | TypeScript + Vite |
+| 3D | Three.js; low-res render target → nearest upscale, palette quantize, ordered dither |
+| Creature mesh | Marching cubes over merged blobs, built once at hatch, cached |
+| RNG / noise | Own seeded PRNG (cyrb128 hash + sfc32) + `simplex-noise` |
+| UI | Svelte 5 overlay |
+| Saves | IndexedDB (`idb-keyval`) + export/import code |
+| PWA | `vite-plugin-pwa` (standalone, offline, safe areas) |
+| Audio | ZzFX + Web Audio (unlocked on first tap) |
+| Tests | Vitest; rarity simulation script |
+| Hosting | Static host with branch previews — see below |
+
+**Architecture:** `src/core` is pure, render-free, fully testable game logic
+(RNG, genome, rarity, needs, lifecycle, save). Offline catch-up simulates in
+1-minute steps. `src/render` (Three.js), `src/ui` (Svelte), `scripts/` (sims).
+
+**Dev tools:** debug panel (seed, reroll, time-scale, jump stage, set needs).
+
+**iPhone notes:** no vibration API on iOS web (hatch "shake" = screen shake +
+sound; real haptics only if wrapped with Capacitor later). Render ~30 fps idle,
+pause when hidden. Audio unlocks on first tap.
+
+**Hosting / running on the iPhone:** the installed PWA caches the whole game
+and runs fully offline on the phone; a host is only needed for first install
+and updates. Proposed host: Cloudflare Pages (free, works with private repos,
+per-branch preview URLs for testing milestones on the phone).
