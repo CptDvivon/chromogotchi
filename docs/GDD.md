@@ -8,16 +8,13 @@ Status legend: ✅ locked · 🟡 in discussion · ⬜ not started
 | # | Step | Status |
 |---|------|--------|
 | 1 | Vision & pillars | ✅ |
-| 2 | The creature: genome & procedural generation | 🟡 |
-| 3 | Care loop, needs, permadeath | ⬜ |
-| 4 | Idle layer: expeditions & economy | ⬜ |
-| 5 | Progression: stats, levels, powers, implants | ⬜ |
-| 6 | Combat core | ⬜ |
-| 7 | PvE mode | ⬜ |
-| 8 | PvP mode | ⬜ |
-| 9 | Tech architecture & libraries | ⬜ |
-| 10 | Art / audio / UI style guide | ⬜ |
-| 11 | MVP scope & milestones | ⬜ |
+| 2 | Scope decision: MVP = classic Tamagotchi loop | ✅ |
+| 3 | Acquisition & hatching (pods, rarity) | 🟡 |
+| 4 | The creature: genome & procedural generation | ⬜ |
+| 5 | Care loop, needs, life stages, death | ⬜ |
+| 6 | Tech architecture & libraries | ⬜ |
+| 7 | Art / audio / UI style guide | ⬜ |
+| 8 | MVP milestones | ⬜ |
 
 ---
 
@@ -28,7 +25,7 @@ life you choose whether to keep it flesh or rebuild it with biotech, black-marke
 chrome and AI chips. The more machine it becomes, the stronger it gets — and the
 less it's *yours*.
 
-**Pillars**
+**Pillars** (long-term vision — see §2 for what the MVP actually builds)
 1. **Flesh vs. chrome is the core choice.** Every upgrade moves the pet along an
    organic ↔ machine axis. Machine = power + free will (disobedience, drift toward
    a cyberpsychosis-like breakdown). Organic = loyalty, stability, lower ceiling.
@@ -51,3 +48,22 @@ All assets (meshes, textures, shaders, UI, audio) are generated in code.
 
 **Audience / scope:** Personal project, shared with friends. No monetization,
 no anti-cheat. Mobile-first web app (installable PWA), optimized for iPhone.
+
+---
+
+## 2. Scope decision ✅
+
+**Cut:** PvP (entirely). PvE as a separate mode (folded into expeditions).
+
+**MVP = the classic Tamagotchi loop only.** Keep it simple:
+choose a starter → hatch → meet your generated pet → care for it.
+
+**Parked for later (agreed direction, not in MVP):**
+- **Expeditions, two ways in:** *send alone* (idle, real-time, auto-resolved,
+  event log, safer/lower loot, pet decides — drift makes it worse) or *jack in*
+  (active 10–15 min roguelite node-map run, Slay the Spire / FTL style).
+- **Turn-based combat** (3–4 one-thumb actions). The pet's body parts are its
+  moveset; drift can override commands mid-fight.
+- Implants (flesh vs chrome), drift, den idle layer, surgery minigame,
+  crafting, fixer contracts, mini-games, legacy/memorial.
+- Buying, splicing/combining starters; rarities above Common.
