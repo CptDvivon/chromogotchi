@@ -35,4 +35,6 @@ export const dev = $state({
   buildMs: 0,
   /** Game-time multiplier; drives needs and ageing from M4. */
   timeScale: load('cg.timeScale', 1),
+  /** Which pod source rerolls use (dealer pods can be Rare+). */
+  source: 'starter' as 'starter' | 'dealer',
 });

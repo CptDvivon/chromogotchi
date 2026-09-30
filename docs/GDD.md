@@ -161,14 +161,16 @@ about how mutated the animal is.
    minor = 1 (heterochromia, extra toe) · visible = 3 (third eye, second tail) ·
    horror = 6 (extra limb, split jaw) · chimera = 10 · wrongness = 15.
    Each source also has a **severity cap**.
-3. **Statistical outliers** add load too: any gene beyond ±2.5σ on the bell
+3. **Statistical outliers** add load too: any gene beyond ±2.75σ on the bell
    curve (a giant, a runt, a freakishly long tail) adds +1.
 4. **Mutation load** M = sum of severities + outlier points.
    Tier thresholds: 0 Common · 1–2 Uncommon · 3–5 Rare · 6–9 Epic ·
    10–14 Legendary · 15+ Mythical.
 
-**Starter pods:** λ = 0.12, cap = minor only → about **11% Uncommon per pod,
-≈ 30% chance at least one of the three starters is Uncommon**. Never higher.
+**Starter pods:** λ = 0.07, cap = minor only, load capped at 2 → measured over
+100k pods: **88.9% Common / 11.1% Uncommon** (≈ 30% chance at least one of the
+three starters is Uncommon). Never higher. (Mutations ≈ 6.8% + outliers ≈ 4.7%.)
+**Dealer pods (dev/testing for now):** λ = 0.9, cap = visible → reach Rare/Epic.
 Future sources (gene dealer, splicing) simply raise λ and the cap; splicing
 derives λ from the parents' mutation loads.
 
@@ -304,9 +306,21 @@ approves before the next one starts.
 | # | Milestone | Done when |
 |---|-----------|-----------|
 | M0 ✅ | Project setup | Vite + TS + Svelte + PWA, Vitest, debug panel shell, deploy pipeline |
-| M1 🟡 | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
-| M2 | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
+| M1 ✅ | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
+| M2 ✅ | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
 | M3 | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
 | M4 | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
 | M5 | Life & death | Stages, care-shaped adult, elder, critical state, death, start over |
 | M6 | Polish | Audio, CRT transitions, install prompt, iPhone QA pass |
+
+---
+
+## M2 implementation notes
+
+- **Species scale & framing:** cat 1 · dog 1.3 · rat 0.55 · raccoon 1.15. The
+  camera and walk area scale with the pet, so a rat gets a rat's-eye view.
+- **Mutations with visuals now:** minor — heterochromia, clouded eye, torn ear,
+  kinked tail, stub tail, alopecia, pigment loss; visible — third eye, twin
+  tail, bone spurs, translucent skin. Horror / chimera / wrongness come later.
+- **Known weak spot:** the raccoon reads least clearly of the four (mask and
+  ringed tail carry it); revisit when polishing.

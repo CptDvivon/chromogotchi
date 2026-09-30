@@ -8,6 +8,9 @@ export interface Primitive {
   dist(x: number, y: number, z: number): number;
   /** Smooth-union radius used when merging this primitive into the body. */
   blend: number;
+  /** Conservative bounding box. */
+  min: Vec3;
+  max: Vec3;
   bone: string;
   region: string;
 }
@@ -23,6 +26,8 @@ export function smin(a: number, b: number, k: number): number {
 export function ellipsoid(c: Vec3, r: Vec3, bone: string, region: string, blend = 0.02): Primitive {
   return {
     bone, region, blend,
+    min: [c[0] - r[0], c[1] - r[1], c[2] - r[2]],
+    max: [c[0] + r[0], c[1] + r[1], c[2] + r[2]],
     dist(x, y, z) {
       const px = (x - c[0]) / r[0], py = (y - c[1]) / r[1], pz = (z - c[2]) / r[2];
       const k0 = Math.hypot(px, py, pz);
@@ -40,14 +45,17 @@ export function roundCone(
   a: Vec3, b: Vec3, r1: number, r2: number, bone: string, region: string,
   blend = 0.02, squash: Vec3 = [1, 1, 1],
 ): Primitive {
-  const bax = b[0] - a[0], bay = b[1] - a[1], baz = (b[2] - a[2]) * squash[2];
+  const bax = (b[0] - a[0]) * squash[0], bay = (b[1] - a[1]) * squash[1], baz = (b[2] - a[2]) * squash[2];
   const l2 = bax * bax + bay * bay + baz * baz;
   const rr = r1 - r2;
   const a2 = l2 - rr * rr;
   const il2 = 1 / l2;
   const smax = Math.max(squash[0], squash[1], squash[2]);
+  const rm = Math.max(r1, r2);
   return {
     bone, region, blend,
+    min: [Math.min(a[0], b[0]) - rm, Math.min(a[1], b[1]) - rm, Math.min(a[2], b[2]) - rm],
+    max: [Math.max(a[0], b[0]) + rm, Math.max(a[1], b[1]) + rm, Math.max(a[2], b[2]) + rm],
     dist(x, y, z) {
       const pax = (x - a[0]) * squash[0], pay = (y - a[1]) * squash[1], paz = (z - a[2]) * squash[2];
       const yy = pax * bax + pay * bay + paz * baz;

@@ -7,8 +7,8 @@ import { Rng } from '../core/rng';
 
 export interface Den {
   scene: THREE.Scene;
-  /** Area the pet may walk in (x/z rectangle on the floor). */
-  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** Walkable area for a cat-sized pet (x/z rectangle); scaled per pet. */
+  baseBounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   setLights(on: boolean): void;
   update(time: number): void;
 }
@@ -221,7 +221,7 @@ export function createDen(): Den {
 
   return {
     scene,
-    bounds: { minX: -0.26, maxX: 0.22, minZ: -0.5, maxZ: 0.22 },
+    baseBounds: { minX: -0.26, maxX: 0.22, minZ: -0.5, maxZ: 0.22 },
     setLights(on) {
       lightsOn = on;
       fluoro.visible = on;

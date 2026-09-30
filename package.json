@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sim": "SIM=1 vitest run src/core/genome.test.ts --silent=false"
   },
   "dependencies": {
     "@fontsource/silkscreen": "^5.3.0",

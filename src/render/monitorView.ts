@@ -2,11 +2,13 @@
 
 import * as THREE from 'three';
 import { generateGenome, type Genome } from '../core/genome';
+import { SOURCES, type Source } from '../core/mutations';
 import { Rng } from '../core/rng';
 import { createDen, type Den } from './den';
 import { PixelPipeline, type PipelineSettings } from './pixelPipeline';
 import { buildCreature, type Creature } from './creature/buildCreature';
 import { PetController } from './creature/petController';
+import { SPECIES_SCALE } from './creature/anatomy';
 
 const FRAME = 1 / 30;
 
@@ -31,8 +33,7 @@ export class MonitorView {
   constructor(private canvas: HTMLCanvasElement, settings: PipelineSettings) {
     this.pipeline = new PixelPipeline(canvas, settings);
     this.den = createDen();
-    this.camera.position.set(0.05, 1.0, 1.85);
-    this.camera.lookAt(0, 0.33, -0.2);
+    this.frameFor(1);
     // Dev: ?inspect=<angle in degrees> frames the pet up close and freezes it.
     const inspect = new URLSearchParams(location.search).get('inspect');
     if (inspect !== null) this.inspectAngle = (Number(inspect) * Math.PI) / 180;
@@ -46,10 +47,29 @@ export class MonitorView {
     this.start();
   }
 
+  /**
+   * Frames the camera for a pet of the given scale: small pets get a closer
+   * camera (a rat's-eye room), big ones a wider view.
+   */
+  private frameFor(scale: number) {
+    const target = new THREE.Vector3(0, 0.33 * Math.min(1, scale * 1.1), -0.2);
+    const offset = new THREE.Vector3(0.05, 0.67, 2.05).multiplyScalar(scale);
+    this.camera.position.copy(target).add(offset);
+    this.camera.lookAt(target);
+    const b = this.den.baseBounds;
+    const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+    this.bounds = {
+      minX: cx + (b.minX - cx) * scale, maxX: cx + (b.maxX - cx) * scale,
+      minZ: cz + (b.minZ - cz) * scale, maxZ: cz + (b.maxZ - cz) * scale,
+    };
+  }
+
+  private bounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+
   /** Swap in a pet built from a seed. Returns the genome and build time. */
-  setPet(seed: string): { genome: Genome; ms: number } {
+  setPet(seed: string, source: Source = SOURCES.starter): { genome: Genome; ms: number } {
     const t0 = performance.now();
-    const genome = generateGenome(seed);
+    const genome = generateGenome(seed, source);
     if (this.creature) {
       this.den.scene.remove(this.creature.group);
       this.creature.dispose();
@@ -58,14 +78,19 @@ export class MonitorView {
     this.creature.group.position.set(-0.05, 0, 0);
     this.creature.group.rotation.y = 0.5;
     this.den.scene.add(this.creature.group);
-    this.controller = new PetController(this.creature, this.den.bounds, new Rng(`${seed}:behaviour`));
+    const scale = SPECIES_SCALE[genome.species] * genome.body.size;
+    if (this.inspectAngle === null) this.frameFor(scale);
+    this.controller = new PetController(this.creature, this.bounds, new Rng(`${seed}:behaviour`));
     if (this.inspectAngle !== null) {
       const a = this.inspectAngle;
       this.creature.group.position.set(0, 0, 0);
       this.creature.group.rotation.y = 0;
       this.controller = undefined;
-      this.camera.position.set(Math.sin(a) * 1.5, 0.45, Math.cos(a) * 1.5);
-      this.camera.lookAt(0, 0.17, -0.05);
+      const zoom = Number(new URLSearchParams(location.search).get('zoom') ?? 1);
+      const look = new THREE.Vector3(0, 0.17 * scale, -0.05);
+      if (zoom < 1) look.set(0, this.creature.anatomy.head[1] * scale, this.creature.anatomy.head[2] * scale);
+      this.camera.position.set(Math.sin(a) * 1.5 * scale * zoom, 0.45 * scale * zoom + look.y * (1 - zoom), look.z + Math.cos(a) * 1.5 * scale * zoom);
+      this.camera.lookAt(look);
     }
     return { genome, ms: performance.now() - t0 };
   }

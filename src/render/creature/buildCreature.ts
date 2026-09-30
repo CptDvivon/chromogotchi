@@ -5,7 +5,7 @@ import { createNoise3D } from 'simplex-noise';
 import type { Genome } from '../../core/genome';
 import { PALETTE, type PaletteColor } from '../../core/palette';
 import { Rng } from '../../core/rng';
-import { catAnatomy, type Anatomy } from './catAnatomy';
+import { buildAnatomy, speciesScale, type Anatomy } from './anatomy';
 import { unionField } from './sdf';
 import { surfaceNets } from './surfaceNets';
 
@@ -22,7 +22,7 @@ export interface Creature {
 const CELL = 0.0065;
 
 export function buildCreature(genome: Genome): Creature {
-  const anatomy = catAnatomy(genome);
+  const anatomy = buildAnatomy(genome);
   const { prims } = anatomy;
   const field = unionField(prims);
   const raw = surfaceNets(field, anatomy.bounds.min, anatomy.bounds.max, CELL);
@@ -35,7 +35,7 @@ export function buildCreature(genome: Genome): Creature {
 
   const boneNames = anatomy.bones.map((b) => b.name);
   const boneIdx = new Map(boneNames.map((name, i) => [name, i]));
-  const painter = coatPainter(genome);
+  const painter = coatPainter(genome, anatomy);
   const dists = new Float32Array(prims.length);
   const boneW = new Float32Array(boneNames.length);
   const eps = 0.002;
@@ -72,7 +72,7 @@ export function buildCreature(genome: Genome): Creature {
     }
     for (let k = 0; k < 4; k++) skinWeight[v * 4 + k] /= sum;
 
-    const c = painter(prims[best].region, x, y, z, normals[v * 3 + 2]);
+    const c = painter(prims[best].region, x, y, z, normals[v * 3], normals[v * 3 + 2]);
     colors[v * 3] = c.r; colors[v * 3 + 1] = c.g; colors[v * 3 + 2] = c.b;
   }
 
@@ -108,9 +108,10 @@ export function buildCreature(genome: Genome): Creature {
   // Eyes: separate glossy spheres riding the head bone; faint glow in the dark.
   const headPos = anatomy.bones.find((b) => b.name === 'head')!.pos;
   const eyeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(PALETTE[genome.coat.eye]) });
+  const eyeMat2 = new THREE.MeshBasicMaterial({ color: new THREE.Color(PALETTE[genome.coat.eye2]) });
   const eyeGeo = new THREE.SphereGeometry(1, 10, 8);
   const eyes = anatomy.eyes.map((e) => {
-    const eye = new THREE.Mesh(eyeGeo, eyeMat);
+    const eye = new THREE.Mesh(eyeGeo, e.second ? eyeMat2 : eyeMat);
     eye.scale.setScalar(e.radius);
     eye.position.set(e.pos[0] - headPos[0], e.pos[1] - headPos[1], e.pos[2] - headPos[2]);
     bones.head.add(eye);
@@ -119,7 +120,7 @@ export function buildCreature(genome: Genome): Creature {
 
   const group = new THREE.Group();
   group.add(mesh);
-  group.scale.setScalar(genome.body.size);
+  group.scale.setScalar(genome.body.size * speciesScale(genome));
 
   return {
     group, mesh, bones, eyes, anatomy, genome,
@@ -128,21 +129,24 @@ export function buildCreature(genome: Genome): Creature {
       material.dispose();
       eyeGeo.dispose();
       eyeMat.dispose();
+      eyeMat2.dispose();
     },
   };
 }
 
 /** Returns a function that colours a surface point by region and coat genes. */
-function coatPainter(g: Genome) {
+function coatPainter(g: Genome, a: Anatomy) {
   const rng = new Rng(`${g.seed}:coat-noise`);
   const noise = createNoise3D(() => rng.float());
-  const { pattern, base, secondary, belly } = g.coat;
+  const { pattern, base, secondary, belly, skin } = g.coat;
+  const has = (m: string) => g.mutations.includes(m as never);
   const cache = new Map<PaletteColor, THREE.Color>();
   const col = (name: PaletteColor) => {
     let c = cache.get(name);
     if (!c) cache.set(name, (c = new THREE.Color(PALETTE[name])));
     return c;
   };
+  const [hx, hy, hz] = a.head;
 
   // Scars: thin pale lines on random planes.
   const scarRng = new Rng(`${g.seed}:scars`);
@@ -151,17 +155,30 @@ function coatPainter(g: Genome) {
     const l = Math.hypot(nrm[0], nrm[1], nrm[2]);
     return {
       n: nrm.map((v) => v / l),
-      c: [scarRng.range(-0.05, 0.05), scarRng.range(0.2, 0.3), scarRng.range(-0.15, 0.2)],
+      c: [scarRng.range(-0.05, 0.05), scarRng.range(a.torsoY, a.torsoY + 0.08), scarRng.range(-0.15, 0.2)],
     };
   });
 
-  return (region: string, x: number, y: number, z: number, nz: number): THREE.Color => {
-    if (region === 'nose') return col(base === 'tar' ? 'meat' : 'raw');
-    if (region === 'ear' && nz > 0.35) return col('meat');
+  return (region: string, x: number, y: number, z: number, nx: number, nz: number): THREE.Color => {
+    if (region === 'bone') return col('bone');
+    if (region === 'nose') return col(g.species === 'cat' && base !== 'tar' ? 'raw' : g.species === 'rat' ? 'raw' : 'tar');
+
+    // Bare skin: rat ears, paws and tail; inner ears.
+    if (g.species === 'rat' && (region === 'tail' || region === 'paw' || region === 'ear')) return col(skin);
+    if (region === 'ear' && nz > 0.35 && g.species !== 'raccoon') return col(g.species === 'dog' ? base : 'meat');
+
+    // Translucent skin: raw patches with dark veins.
+    if (has('translucentSkin')) {
+      const t = noise(x * 7 + 11, y * 7, z * 7);
+      if (t > 0.25) return Math.abs(noise(x * 40, y * 40, z * 40)) < 0.08 ? col('magentaDeep') : col(t > 0.5 ? 'raw' : 'meat');
+    }
 
     // Bare, mangy skin patches.
     const m = noise(x * 18, y * 18, z * 18) * 0.5 + 0.5;
     if (region !== 'paw' && m < g.mange * 0.3) return col(m < g.mange * 0.14 ? 'bruise' : 'meat');
+
+    // Pigment loss.
+    if (has('vitiligo') && noise(x * 10 - 7, y * 10, z * 10) > 0.4) return col('bone');
 
     for (const s of scars) {
       const d = (x - s.c[0]) * s.n[0] + (y - s.c[1]) * s.n[1] + (z - s.c[2]) * s.n[2];
@@ -169,8 +186,10 @@ function coatPainter(g: Genome) {
       if (Math.abs(d) < 0.0035 && r < 0.06) return col('skin');
     }
 
-    const lower = region === 'belly' || (region === 'torso' && y < 0.2 && nz > -0.2);
+    const lower = region === 'belly' || ((region === 'torso' || region === 'neck') && y < a.torsoY - 0.02 && Math.abs(nx) < 0.7);
+    const top = (region === 'torso' || region === 'neck') && y > a.torsoY + 0.02;
     const warp = noise(x * 6, y * 6, z * 6) * 0.02;
+
     switch (pattern) {
       case 'tabby': {
         const along = region === 'leg' || region === 'paw' ? y : region === 'tail' ? z * 1.3 : z + y * 0.3;
@@ -188,6 +207,49 @@ function coatPainter(g: Genome) {
       case 'point':
         if (region === 'ear' || region === 'muzzle' || region === 'paw' || region === 'tail' || (region === 'leg' && y < 0.1)) return col(secondary);
         return lower ? col(belly) : col(base);
+      case 'saddle':
+        if (top || region === 'tail') return col(secondary);
+        return lower ? col(belly) : col(base);
+      case 'brindle': {
+        if (lower) return col(belly);
+        const s = Math.sin((z + y * 0.5 + noise(x * 12, y * 12, z * 12) * 0.03) * 140);
+        return s > 0.55 ? col(secondary) : col(base);
+      }
+      case 'patched': {
+        if (region === 'head' || region === 'ear') return noise(x * 8, y * 8 + 5, z * 8) > -0.2 ? col(secondary) : col(base);
+        return noise(x * 7 + 3, y * 7, z * 7) > 0.3 ? col(secondary) : col(base);
+      }
+      case 'agouti':
+        if (lower) return col(belly);
+        return noise(x * 60, y * 60, z * 60) > 0.3 ? col(secondary) : col(base);
+      case 'hooded':
+        if (region === 'head' || region === 'ear' || region === 'muzzle' || (region === 'neck') || (top && Math.abs(x) < 0.02)) return col(secondary);
+        return col(base);
+      case 'albino':
+        return col('bone');
+      case 'masked':
+      case 'masked-dark': {
+        if (region === 'paw' || (region === 'leg' && y < a.torsoY * 0.3)) return col('tar');
+        // Dark ears with pale rims.
+        if (region === 'ear') return y > hy + 0.062 ? col('bone') : col('tar');
+        if (region === 'tail') {
+          const d = Math.hypot(y - a.tailBase[1], z - a.tailBase[2]);
+          return Math.floor((d / a.tailLength) * 9) % 2 ? col('tar') : col(base);
+        }
+        if (region === 'head' || region === 'muzzle') {
+          // Dark bandit mask across the eyes, framed by pale brows and muzzle.
+          const dy = y - (hy + 0.012);
+          if (region === 'muzzle') return z > hz + 0.085 ? col('tar') : col(belly);
+          if (z > hz + 0.01) {
+            if (dy > -0.016 && dy < 0.014 && Math.abs(x - hx) > 0.006) return col(secondary);
+            if (dy >= 0.014 && dy < 0.028) return col(belly);
+            if (dy <= -0.016 && Math.abs(x - hx) < 0.03) return col(belly);
+          }
+          if (Math.abs(x - hx) < 0.008 && dy > -0.02 && z > hz) return col('tar');
+        }
+        if (lower) return col(belly);
+        return noise(x * 50, y * 50, z * 50) > 0.6 ? col('tar') : noise(x * 45 + 9, y * 45, z * 45) > 0.55 ? col(belly) : col(base);
+      }
       default:
         return lower ? col(belly) : col(base);
     }

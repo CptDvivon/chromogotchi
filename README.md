@@ -19,7 +19,10 @@ npm run build    # production build in dist/
   toggles, time scale (used from M4), FPS and genome readout.
 - `?seed=ABC123` loads a specific pet.
 - `?inspect=90` freezes the pet and frames it up close from the given angle
-  (degrees).
+  (degrees); add `&zoom=0.4` to frame the face.
+- `?source=dealer` rolls pods from the dealer source (Rare+ possible).
+- **Gallery** (in DBG): pick source / species / tier and FIND NEXT.
+- `npm run sim` prints the tier distribution over 100k pods.
 
 ## Deploy
 

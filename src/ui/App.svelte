@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { Genome } from '../core/genome';
   import { randomSeed } from '../core/rng';
+  import { SOURCES } from '../core/mutations';
   import { MonitorView } from '../render/monitorView';
   import ControlDeck from './ControlDeck.svelte';
   import DebugPanel from './DebugPanel.svelte';
@@ -26,13 +27,14 @@
 
   function loadPet(seed: string) {
     if (!view) return;
-    const r = view.setPet(seed);
+    const r = view.setPet(seed, SOURCES[dev.source]);
     genome = r.genome;
     dev.buildMs = Math.round(r.ms);
     try { localStorage.setItem('cg.seed', seed); } catch { /* ignore */ }
   }
 
   onMount(() => {
+    if (new URLSearchParams(location.search).get('source') === 'dealer') dev.source = 'dealer';
     view = new MonitorView(canvas, { ...pipeline });
     view.onFps = (fps) => (dev.fps = fps);
     loadPet(initialSeed());
@@ -81,7 +83,7 @@
     {#if genome}
       <div class="osd bottom">
         <span>SUBJECT {genome.designation} "{genome.streetName.toUpperCase()}"</span>
-        <span>{genome.species.toUpperCase()} // COMMON</span>
+        <span>{genome.species.toUpperCase()} // <span class="tier {genome.tier}">{genome.tier.toUpperCase()}</span></span>
       </div>
     {/if}
   </section>
@@ -158,6 +160,9 @@
   }
   .osd.top { top: 12px; }
   .osd.bottom { bottom: 12px; flex-direction: column; gap: 2px; }
+  .tier.uncommon { color: var(--cyan); text-shadow: 0 0 6px rgba(41, 240, 255, 0.5); }
+  .tier.rare, .tier.epic { color: var(--magenta); text-shadow: 0 0 6px rgba(255, 46, 136, 0.5); }
+  .tier.legendary, .tier.mythical { color: var(--white-hot); text-shadow: 0 0 8px rgba(255, 246, 224, 0.7); }
   .rec { color: var(--magenta); animation: blink 1.6s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .rec { animation: none; } }

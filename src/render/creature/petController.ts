@@ -25,15 +25,21 @@ export class PetController {
   private earTwitch = { side: 'earL', t: -1 };
   private time = 0;
   private stride: number;
-  private readonly rest = new Map<string, THREE.Euler>();
+  private scale: number;
+  private readonly tails = new Map<string, THREE.Bone[]>();
 
   constructor(
     private creature: Creature,
     private bounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     private rng: Rng,
   ) {
-    this.stride = 0.16 * creature.genome.body.legLength * creature.genome.body.size;
-    for (const [name, bone] of Object.entries(creature.bones)) this.rest.set(name, bone.rotation.clone());
+    this.scale = creature.group.scale.x;
+    this.stride = 0.16 * creature.genome.body.legLength * this.scale;
+    for (const prefix of ['tail', 'tailB']) {
+      const chain: THREE.Bone[] = [];
+      for (let i = 0; creature.bones[`${prefix}${i}`]; i++) chain.push(creature.bones[`${prefix}${i}`]);
+      if (chain.length) this.tails.set(prefix, chain);
+    }
   }
 
   /** Look at a world point for a few seconds (e.g. the player's finger). */
@@ -47,7 +53,7 @@ export class PetController {
     this.modeTime += dt;
     const g = this.creature.group;
     const b = this.creature.bones;
-    const speed = 0.2 * this.creature.genome.body.size;
+    const speed = 0.2 * this.scale;
     let moving = 0;
 
     if (this.mode === 'idle' && this.modeTime > this.idleFor) {
@@ -92,11 +98,13 @@ export class PetController {
     b.body.position.y = this.creature.anatomy.bones[1].pos[1] + (moving ? Math.abs(Math.sin(this.phase * Math.PI * 2)) * 0.006 : 0);
     b.chest.scale.set(1 + breath * 0.025, 1 + breath * 0.035, 1);
 
-    // Tail: slow sway, livelier when walking.
-    for (let i = 0; i < 5; i++) {
-      const t = b[`tail${i}`];
-      t.rotation.y = Math.sin(this.time * (1.1 + moving) - i * 0.6) * (0.12 + i * 0.05);
-      t.rotation.x = Math.sin(this.time * 0.6 + i) * 0.05;
+    // Tail(s): slow sway, livelier when walking.
+    for (const [prefix, bones] of this.tails) {
+      bones.forEach((t, i) => {
+        const off = prefix === 'tailB' ? 1.7 : 0;
+        t.rotation.y = Math.sin(this.time * (1.1 + moving) - i * 0.6 + off) * (0.1 + i * 0.04);
+        t.rotation.x = Math.sin(this.time * 0.6 + i + off) * 0.05;
+      });
     }
 
     // Head: idle glances, or track the look target.
