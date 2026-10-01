@@ -127,6 +127,11 @@ export class MonitorView {
     }
     this.controller = undefined;
     this.mode = { kind: 'empty' };
+    // A fresh room: no leftover waste, food or dimmed lights from a previous pet.
+    this.den.setWaste(0);
+    this.den.setBowl(null, 0);
+    this.den.setLights(true);
+    this.condition = { asleep: false, sick: false, vigor: 1 };
   }
 
   /** Pod bay: three pods to choose from. Built one per frame to avoid a stall. */

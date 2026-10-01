@@ -72,9 +72,10 @@ export function createDen(): Den {
   // Floor: stained concrete.
   const floorTex = canvasTexture(96, 96, (ctx) => {
     grime(ctx, 96, 96, PALETTE.soot, PALETTE.tar, PALETTE.mold, false);
-    ctx.fillStyle = PALETTE.rustDark;
+    // Oil and grime stains (kept clear of red, which is reserved for blood).
+    ctx.fillStyle = PALETTE.void;
     for (let i = 0; i < 5; i++) {
-      ctx.globalAlpha = 0.6;
+      ctx.globalAlpha = 0.45;
       ctx.beginPath();
       ctx.ellipse(rng.int(0, 96), rng.int(0, 96), rng.int(4, 12), rng.int(3, 8), 0, 0, Math.PI * 2);
       ctx.fill();
