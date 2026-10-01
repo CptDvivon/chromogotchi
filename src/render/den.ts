@@ -10,6 +10,8 @@ export interface Den {
   /** Walkable area for a cat-sized pet (x/z rectangle); scaled per pet. */
   baseBounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   setLights(on: boolean): void;
+  /** Extra fluorescent stutter (0..1), e.g. while a pod is breaching. */
+  setFlicker(amount: number): void;
   update(time: number): void;
 }
 
@@ -218,6 +220,7 @@ export function createDen(): Den {
   scene.add(cyanSpill);
 
   let lightsOn = true;
+  let flicker = 0;
 
   return {
     scene,
@@ -231,6 +234,9 @@ export function createDen(): Den {
       ambient.intensity = on ? 0.45 : 0.36;
       bulb.intensity = on ? 2.2 : 0.85;
     },
+    setFlicker(amount) {
+      flicker = amount;
+    },
     update(time) {
       rainMat.uniforms.time.value = time;
       // Neon: mostly steady, with occasional stutters.
@@ -239,7 +245,7 @@ export function createDen(): Den {
       signMat.color.setScalar(neonOn);
       neon.intensity = 1.4 * neonOn;
       if (lightsOn) {
-        const buzz = Math.sin(time * 0.7) > 0.985 ? 0.35 : 1;
+        const buzz = Math.sin(time * 0.7) > 0.985 || (flicker > 0 && Math.sin(time * 23.7) * Math.sin(time * 7.3) > 1 - flicker) ? 0.35 : 1;
         fluoro.intensity = 5 * buzz;
       }
     },

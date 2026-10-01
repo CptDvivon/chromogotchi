@@ -8,11 +8,14 @@
   interface Props {
     seed: string;
     genome: Genome | undefined;
+    phase: string;
     onSeed: (seed: string) => void;
     onReroll: () => void;
+    onRestart: () => void;
+    onSkipHatch: () => void;
     onClose: () => void;
   }
-  let { seed, genome, onSeed, onReroll, onClose }: Props = $props();
+  let { seed, genome, phase, onSeed, onReroll, onRestart, onSkipHatch, onClose }: Props = $props();
   let input = $state('');
   $effect(() => { input = seed; });
 
@@ -43,6 +46,13 @@
   <div class="head">
     <span>DEBUG // DEV TOOLS</span>
     <button onclick={onClose}>CLOSE</button>
+  </div>
+
+  <div class="row">GAME FLOW ({phase.toUpperCase()})
+    <div class="btns">
+      <button onclick={onRestart}>NEW GAME (PODS)</button>
+      {#if phase === 'hatching'}<button onclick={onSkipHatch}>SKIP HATCH</button>{/if}
+    </div>
   </div>
 
   <label class="row">SEED

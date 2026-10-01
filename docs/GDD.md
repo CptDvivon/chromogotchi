@@ -308,7 +308,7 @@ approves before the next one starts.
 | M0 ✅ | Project setup | Vite + TS + Svelte + PWA, Vitest, debug panel shell, deploy pipeline |
 | M1 ✅ | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
 | M2 ✅ | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
-| M3 | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
+| M3 ✅ | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
 | M4 | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
 | M5 | Life & death | Stages, care-shaped adult, elder, critical state, death, start over |
 | M6 | Polish | Audio, CRT transitions, install prompt, iPhone QA pass |
@@ -324,3 +324,18 @@ approves before the next one starts.
   tail, bone spurs, translucent skin. Horror / chimera / wrongness come later.
 - **Known weak spot:** the raccoon reads least clearly of the four (mask and
   ringed tail carry it); revisit when polishing.
+
+## M3 implementation notes
+
+- **Flow:** `select` (3 starter pods) → `hatching` (wall-clock based, survives
+  closing the app) → `den`. Saved locally (`cg.game`); M4 moves saves to
+  IndexedDB with export/import.
+- **Pods** are real 3D objects in the den: the actual generated creature floats
+  curled up inside as a dark silhouette; Uncommon pods have a blinking amber
+  warning lamp and an "IRREGULARITY DETECTED" readout.
+- **Hatch phases** (no timer, only rhythm): ECG heart rate 34 → 78 → 150 → 190
+  bpm, bubbles and twitching increase, glass cracks and fluid drains while the
+  room light stutters and the camera shakes, then the seal bursts (shards,
+  steam, lid pops) and the creature unfolds onto the floor at full size.
+- **Reveal card:** "SUBJECT VIABLE", designation, name, species, tier.
+- **Dev:** DBG → NEW GAME (PODS), SKIP HATCH.

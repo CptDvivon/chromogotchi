@@ -17,7 +17,8 @@ npm run build    # production build in dist/
 
 - **DBG** button (top right): seed field, reroll, pixel resolution, filter
   toggles, time scale (used from M4), FPS and genome readout.
-- `?seed=ABC123` loads a specific pet.
+- **NEW GAME (PODS)** / **SKIP HATCH** (in DBG) restart the flow or fast-forward a hatch.
+- `?seed=ABC123` loads a specific pet straight into the den (not saved).
 - `?inspect=90` freezes the pet and frames it up close from the given angle
   (degrees); add `&zoom=0.4` to frame the face.
 - `?source=dealer` rolls pods from the dealer source (Rare+ possible).
