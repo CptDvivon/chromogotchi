@@ -1,36 +1,16 @@
-// Game flow: choose a pod → hatch it → live with the pet. Persisted locally.
-// (M4 moves saves to IndexedDB with export/import; this stays the flow model.)
+// Game flow: choose a pod → hatch it → live with the pet.
 
 import { CONFIG } from './config';
+import type { PetState } from './care';
 import { randomSeed } from './rng';
 
 export type GameState =
   | { phase: 'select'; pods: string[] }
   | { phase: 'hatching'; seed: string; startedAt: number }
-  | { phase: 'den'; seed: string; hatchedAt: number; source?: 'starter' | 'dealer' };
-
-const KEY = 'cg.game';
+  | { phase: 'den'; seed: string; hatchedAt: number; source?: 'starter' | 'dealer'; pet: PetState };
 
 export function newGame(): GameState {
   return { phase: 'select', pods: [randomSeed(), randomSeed(), randomSeed()] };
-}
-
-export function loadGame(): GameState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as GameState;
-  } catch {
-    /* fall through to a fresh game */
-  }
-  return newGame();
-}
-
-export function saveGame(state: GameState) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    /* storage unavailable: progress won't persist */
-  }
 }
 
 export type HatchStage = 'dormant' | 'stirring' | 'breaching' | 'emergence';

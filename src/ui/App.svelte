@@ -1,31 +1,113 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { CONFIG } from '../core/config';
+  import {
+    clean, feed, medicate, newPetState, pet as petAction, play, setLights, simulate,
+    type ActionResult, type CareEvent, type FoodKind, type Needs, type PetState,
+  } from '../core/care';
   import type { Genome } from '../core/genome';
   import { SOURCES } from '../core/mutations';
+  import { buildReport, needDeltas, type ReportLine } from '../core/report';
   import { randomSeed } from '../core/rng';
-  import { loadGame, newGame, saveGame, type GameState, type HatchStage } from '../core/session';
+  import { exportSave, freshSave, importSave, loadSave, requestPersistence, writeSave, type SaveData } from '../core/save';
+  import { newGame, type GameState, type HatchStage } from '../core/session';
+  import { dayPhase, hourOf, weatherOn } from '../core/world';
   import { MonitorView } from '../render/monitorView';
   import ControlDeck from './ControlDeck.svelte';
   import DebugPanel from './DebugPanel.svelte';
   import HatchDeck from './HatchDeck.svelte';
   import PodDeck from './PodDeck.svelte';
+  import ReportCard from './ReportCard.svelte';
+  import SysPanel from './SysPanel.svelte';
+  import type { CareAction } from './types';
   import { dev, pipeline, save } from './state.svelte';
 
   let canvas: HTMLCanvasElement;
   let view: MonitorView | undefined = $state();
-  let game: GameState = $state(loadGame());
+  /** The save is a plain object: the sim mutates it every tick. UI reads snapshots. */
+  let data: SaveData = freshSave();
+  let ready = $state(false);
+  let game: GameState = $state.raw(data.game);
   let selected = $state(1);
   let stage: HatchStage | null = $state(null);
-  let genome: Genome | undefined = $state();
+  let genome: Genome | undefined = $state.raw();
   let reveal = $state(false);
-  let lightsOn = $state(true);
   let log = $state('LINK ESTABLISHED // SUBJECT FEED LIVE');
   let clock = $state('');
+  let worldLabel = $state('');
+  let sysOpen = $state(false);
+  let report: { awayMs: number; lines: ReportLine[]; deltas: { key: keyof Needs; delta: number }[] } | null = $state(null);
+  /** Snapshot of the pet for the UI (refreshed every tick and after actions). */
+  let snap = $state({ needs: { hunger: 0, hygiene: 0, energy: 0, mood: 0, health: 0 } as Needs, asleep: false, sick: false, lightsOn: true });
+
+  const now = () => Date.now() + data.clockSkew;
+  const petState = (): PetState | undefined => (data.game.phase === 'den' ? data.game.pet : undefined);
+
+  function persist() {
+    void writeSave(data);
+  }
 
   function setGame(g: GameState) {
+    data.game = g;
     game = g;
-    saveGame(g);
+    persist();
+  }
+
+  function refresh() {
+    const p = petState();
+    if (!p) return;
+    snap = { needs: { ...p.needs }, asleep: p.asleep, sick: p.sick, lightsOn: p.lightsOn };
+    const n = p.needs;
+    view?.setCare({
+      asleep: p.asleep,
+      sick: p.sick,
+      vigor: Math.max(0, Math.min(1, (Math.min(n.energy, n.hunger, n.health) - 5) / 45)),
+      waste: p.waste,
+      lightsOn: p.lightsOn,
+    });
+  }
+
+  const EVENT_LOG: Partial<Record<CareEvent['kind'], string>> = {
+    fellAsleep: 'SUBJECT ASLEEP // DIM THE LIGHTS',
+    napped: 'SUBJECT COLLAPSED INTO A NAP',
+    wokeUp: 'SUBJECT AWAKE',
+    pooped: 'WASTE DEPOSITED // CLEAN REQUIRED',
+    gotSick: 'INFECTION DETECTED // MEDS REQUIRED',
+    starving: 'NUTRITION CRITICAL',
+    filthy: 'HYGIENE CRITICAL',
+    exhausted: 'SUBJECT EXHAUSTED',
+    miserable: 'SUBJECT MISERABLE',
+    critical: 'VITALS CRITICAL // INTERVENE',
+  };
+
+  /** Advance the sim to now; live events go to the log line. */
+  function tick() {
+    const t = now();
+    const hour = hourOf(t);
+    const weather = weatherOn(t);
+    view?.setWorld(hour, weather);
+    worldLabel = `${weather.toUpperCase()} · ${dayPhase(hour).toUpperCase()}`;
+    clock = new Date(t).toTimeString().slice(0, 8);
+    const p = petState();
+    if (p && genome) {
+      const events = simulate(p, genome, t);
+      const last = events.at(-1);
+      if (last && EVENT_LOG[last.kind]) log = EVENT_LOG[last.kind]!;
+      refresh();
+    }
+  }
+
+  /** On opening: catch up on everything that happened while away. */
+  function catchUp() {
+    const p = petState();
+    if (!p || !genome) return;
+    const before = { ...p.needs };
+    const from = p.simTime;
+    const events = simulate(p, genome, now());
+    const away = now() - from;
+    if (away > 10 * 60000) report = { awayMs: away, lines: buildReport(events, genome.seed), deltas: needDeltas(before, p.needs) };
+    refresh();
+    persist();
   }
 
   function enterPhase() {
@@ -42,12 +124,14 @@
       const r = view.setPet(game.seed, SOURCES[game.source ?? 'starter']);
       genome = r.genome;
       dev.buildMs = Math.round(r.ms);
+      catchUp();
     }
+    tick();
   }
 
   /** Dev tools: drop a specific pet straight into the den. */
   function loadPet(seed: string) {
-    setGame({ phase: 'den', seed, hatchedAt: Date.now(), source: dev.source });
+    setGame({ phase: 'den', seed, hatchedAt: now(), source: dev.source, pet: newPetState(now()) });
     enterPhase();
   }
 
@@ -64,30 +148,91 @@
     view.startHatch(seed, startedAt, CONFIG.hatchMs, selected);
   }
 
+  function result(r: ActionResult) {
+    log = r.message;
+    refresh();
+    persist();
+  }
+
+  function onFeed(kind: FoodKind) {
+    const p = petState();
+    if (!p) return;
+    const r = feed(p, kind);
+    if (r.ok) view?.feed(kind);
+    result(r);
+  }
+
+  function onAction(a: CareAction) {
+    const p = petState();
+    if (!p || !genome) return;
+    if (a === 'clean') {
+      const r = clean(p);
+      if (r.ok) view?.clean();
+      result(r);
+    } else if (a === 'play') {
+      const r = play(p, genome);
+      if (r.ok) view?.play();
+      result(r);
+    } else if (a === 'lights') {
+      setLights(p, !p.lightsOn);
+      result({ ok: true, message: p.lightsOn ? 'LIGHTS ON' : 'LIGHTS OFF // ROOM DIMMED' });
+    } else {
+      result(medicate(p));
+    }
+  }
+
   onMount(() => {
     if (new URLSearchParams(location.search).get('source') === 'dealer') dev.source = 'dealer';
     view = new MonitorView(canvas, { ...pipeline });
     view.onFps = (fps) => (dev.fps = fps);
     view.onPodTap = selectPod;
     view.onHatchStage = (s) => (stage = s);
+    view.onPetTap = () => {
+      const p = petState();
+      if (p && genome) result(petAction(p, genome));
+    };
     view.onHatched = (g) => {
       genome = g;
-      setGame({ phase: 'den', seed: g.seed, hatchedAt: Date.now() });
+      setGame({ phase: 'den', seed: g.seed, hatchedAt: now(), pet: newPetState(now()) });
       reveal = true;
       log = `SUBJECT ${g.designation} VIABLE // FEED LIVE`;
+      refresh();
     };
-    const urlSeed = new URLSearchParams(location.search).get('seed');
-    if (urlSeed) {
-      const r = view.setPet(urlSeed.toUpperCase(), SOURCES[dev.source]);
-      genome = r.genome;
-    } else {
-      enterPhase();
-    }
-    const tick = () => (clock = new Date().toTimeString().slice(0, 8));
-    tick();
-    const id = setInterval(tick, 1000);
+
+    let last = performance.now();
+    let ticks = 0;
+    const id = setInterval(() => {
+      const t = performance.now();
+      // Dev fast-forward: the game clock runs `timeScale` times faster.
+      if (dev.timeScale > 1) data.clockSkew += (dev.timeScale - 1) * (t - last);
+      last = t;
+      tick();
+      if (++ticks % 15 === 0) persist();
+    }, 1000);
+    const onHide = () => document.visibilityState === 'hidden' ? persist() : catchUp();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', persist);
+
+    void (async () => {
+      data = await loadSave();
+      game = data.game;
+      ready = true;
+      void requestPersistence();
+      const urlSeed = new URLSearchParams(location.search).get('seed');
+      if (urlSeed) {
+        const r = view!.setPet(urlSeed.toUpperCase(), SOURCES[dev.source]);
+        genome = r.genome;
+        tick();
+      } else {
+        enterPhase();
+      }
+    })();
+
     return () => {
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', persist);
+      persist();
       view?.dispose();
     };
   });
@@ -97,16 +242,6 @@
     view?.updateSettings(s);
     save('cg.pipeline', s);
   });
-
-  function toggleLights() {
-    lightsOn = !lightsOn;
-    view?.setLights(lightsOn);
-    log = lightsOn ? 'LIGHTS ON // SUBJECT AWAKE' : 'LIGHTS OFF // SUBJECT RESTING';
-  }
-
-  function offline(label: string) {
-    log = `${label} MODULE OFFLINE // PENDING FIRMWARE`;
-  }
 
   function restart() {
     selected = 1;
@@ -120,12 +255,29 @@
     if (t && game.phase === 'hatching') setGame({ ...game, startedAt: t });
     dev.open = false;
   }
+
+  function resetClock() {
+    data.clockSkew = 0;
+    persist();
+    tick();
+  }
+
+  function doImport(code: string): boolean {
+    const d = importSave(code);
+    if (!d) return false;
+    data = d;
+    game = d.game;
+    persist();
+    enterPhase();
+    return true;
+  }
 </script>
 
 <div class="device">
   <header class="topbar">
     <span class="brand">CHROMOGOTCHI</span>
     <span class="sub">VET-LINK v0.1 [JAILBROKEN]</span>
+    <button class="dbg" onclick={() => (sysOpen = !sysOpen)} aria-label="System and backup">SYS</button>
     <button class="dbg" onclick={() => (dev.open = !dev.open)} aria-label="Toggle debug panel">DBG</button>
   </header>
 
@@ -133,10 +285,12 @@
     <canvas bind:this={canvas}></canvas>
     <div class="osd top">
       <span><span class="rec">●</span> REC CAM-01{game.phase === 'den' ? '' : ' // POD BAY'}</span>
-      <span>{clock}</span>
+      <span class="right">{clock}<br /><span class="world">{worldLabel}</span></span>
     </div>
     <div class="osd bottom">
-      {#if game.phase === 'select'}
+      {#if !ready}
+    <section class="boot">BOOTING VET-LINK…</section>
+  {:else if game.phase === 'select'}
         <span>{game.pods.length} PODS DETECTED</span>
         <span>TAP A POD TO SCAN</span>
       {:else if game.phase === 'hatching'}
@@ -144,9 +298,12 @@
         <span>DO NOT DISTURB</span>
       {:else if genome}
         <span>SUBJECT {genome.designation} "{genome.streetName.toUpperCase()}"</span>
-        <span>{genome.species.toUpperCase()} // <span class="tier {genome.tier}">{genome.tier.toUpperCase()}</span></span>
+        <span>{genome.species.toUpperCase()} // <span class="tier {genome.tier}">{genome.tier.toUpperCase()}</span>{snap.asleep ? ' // ZZZ' : ''}</span>
       {/if}
     </div>
+    {#if report && game.phase === 'den'}
+      <ReportCard awayMs={report.awayMs} lines={report.lines} deltas={report.deltas} onClose={() => (report = null)} />
+    {/if}
     {#if reveal && genome}
       <div class="reveal" role="dialog" aria-label="Subject viable">
         <div class="title">SUBJECT VIABLE</div>
@@ -157,12 +314,18 @@
     {/if}
   </section>
 
-  {#if game.phase === 'select'}
+  {#if !ready}
+    <section class="boot">BOOTING VET-LINK…</section>
+  {:else if game.phase === 'select'}
     <PodDeck pods={game.pods} {selected} onSelect={selectPod} onIncubate={incubate} />
   {:else if game.phase === 'hatching'}
     <HatchDeck {stage} podId={game.seed.slice(-4)} />
   {:else}
-    <ControlDeck {lightsOn} {log} onLights={toggleLights} onOffline={offline} />
+    <ControlDeck needs={snap.needs} asleep={snap.asleep} sick={snap.sick} lightsOn={snap.lightsOn} {log} {onFeed} {onAction} />
+  {/if}
+
+  {#if sysOpen}
+    <SysPanel exportCode={() => exportSave(data)} onImport={doImport} onClose={() => (sysOpen = false)} />
   {/if}
 
   {#if dev.open}
@@ -174,6 +337,7 @@
       onReroll={() => loadPet(randomSeed())}
       onRestart={restart}
       onSkipHatch={skipHatch}
+      onResetClock={resetClock}
       onClose={() => (dev.open = false)}
     />
   {/if}
@@ -236,7 +400,10 @@
     pointer-events: none;
     opacity: 0.9;
   }
-  .osd.top { top: 12px; }
+  .osd.top { top: 12px; align-items: flex-start; }
+  .right { text-align: right; }
+  .world { font-size: 14px; color: var(--phosphor-dim); }
+  .boot { flex: 0 0 auto; padding: 20px; font-size: 20px; text-shadow: var(--glow); }
   .osd.bottom { bottom: 12px; flex-direction: column; gap: 2px; }
   .reveal {
     position: absolute;

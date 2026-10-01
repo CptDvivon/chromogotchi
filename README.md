@@ -17,6 +17,8 @@ npm run build    # production build in dist/
 
 - **DBG** button (top right): seed field, reroll, pixel resolution, filter
   toggles, time scale (used from M4), FPS and genome readout.
+- **SYS** (top right): export/import a save code (backup).
+- **TIME SCALE** in DBG fast-forwards the game clock while the app is open; RESET CLOCK undoes it.
 - **NEW GAME (PODS)** / **SKIP HATCH** (in DBG) restart the flow or fast-forward a hatch.
 - `?seed=ABC123` loads a specific pet straight into the den (not saved).
 - `?inspect=90` freezes the pet and frames it up close from the given angle

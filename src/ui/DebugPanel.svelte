@@ -13,9 +13,10 @@
     onReroll: () => void;
     onRestart: () => void;
     onSkipHatch: () => void;
+    onResetClock: () => void;
     onClose: () => void;
   }
-  let { seed, genome, phase, onSeed, onReroll, onRestart, onSkipHatch, onClose }: Props = $props();
+  let { seed, genome, phase, onSeed, onReroll, onRestart, onSkipHatch, onResetClock, onClose }: Props = $props();
   let input = $state('');
   $effect(() => { input = seed; });
 
@@ -103,11 +104,12 @@
     <label><input type="checkbox" bind:checked={pipeline.flicker} /> FLICKER</label>
   </div>
 
-  <div class="row">TIME SCALE (FROM M4)
-    <div class="btns">
+  <div class="row">TIME SCALE (WHILE OPEN)
+    <div class="btns wrap">
       {#each SCALES as s (s)}
         <button class:on={dev.timeScale === s} onclick={() => (dev.timeScale = s)}>{s}x</button>
       {/each}
+      <button onclick={onResetClock}>RESET CLOCK</button>
     </div>
   </div>
 

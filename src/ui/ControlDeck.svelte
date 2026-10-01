@@ -1,46 +1,72 @@
 <script lang="ts">
+  import type { FoodKind, Needs } from '../core/care';
+  import type { CareAction } from './types';
+
   interface Props {
+    needs: Needs;
+    asleep: boolean;
+    sick: boolean;
     lightsOn: boolean;
     log: string;
-    onLights: () => void;
-    onOffline: (label: string) => void;
+    onFeed: (kind: FoodKind) => void;
+    onAction: (a: CareAction) => void;
   }
-  let { lightsOn, log, onLights, onOffline }: Props = $props();
+  let { needs, asleep, sick, lightsOn, log, onFeed, onAction }: Props = $props();
+  let feeding = $state(false);
 
-  // Placeholder readings until the care loop lands (M4).
-  const meters = [
-    { label: 'NUTR', value: 7 },
-    { label: 'HYGN', value: 4 },
-    { label: 'ENRG', value: 8 },
-    { label: 'MOOD', value: 5 },
-    { label: 'VITL', value: 9 },
-  ];
+  const meters = $derived([
+    { label: 'NUTR', value: needs.hunger },
+    { label: 'HYGN', value: needs.hygiene },
+    { label: 'ENRG', value: needs.energy },
+    { label: 'MOOD', value: needs.mood },
+    { label: 'VITL', value: needs.health },
+  ]);
+  const critical = $derived(needs.health < 15);
+
+  function food(kind: FoodKind) {
+    feeding = false;
+    onFeed(kind);
+  }
 </script>
 
 <section class="deck">
-  <div class="meters" aria-label="Vital signs (simulated)">
+  <div class="meters" aria-label="Vital signs">
     {#each meters as m (m.label)}
       <div class="meter">
         <span class="label">{m.label}</span>
         <span class="bar">
           {#each Array(10) as _, i (i)}
-            <span class="seg" class:on={i < m.value} class:low={m.value <= 3}></span>
+            <span class="seg" class:on={i < Math.ceil(m.value / 10)} class:low={m.value <= 30}></span>
           {/each}
         </span>
       </div>
     {/each}
-    <span class="sim">SIM DATA</span>
+    <div class="status">
+      {#if critical}<span class="alarm">CRITICAL</span>{/if}
+      {#if sick}<span class="alarm">SICK</span>{/if}
+      {#if asleep}<span class="info">ASLEEP</span>{/if}
+      {#if !lightsOn}<span class="dim">LIGHTS OFF</span>{/if}
+    </div>
   </div>
 
   <div class="log" aria-live="polite">&gt; {log}<span class="caret">_</span></div>
 
-  <div class="buttons">
-    <button onclick={() => onOffline('FEED')}>FEED</button>
-    <button onclick={() => onOffline('CLEAN')}>CLEAN</button>
-    <button onclick={() => onOffline('PLAY')}>PLAY</button>
-    <button class:active={!lightsOn} onclick={onLights}>{lightsOn ? 'LIGHTS' : 'WAKE'}</button>
-    <button onclick={() => onOffline('MEDS')}>MEDS</button>
-  </div>
+  {#if feeding}
+    <div class="buttons">
+      <button onclick={() => food('paste')}>PASTE</button>
+      <button onclick={() => food('scraps')}>SCRAPS</button>
+      <button onclick={() => food('treat')}>TREAT</button>
+      <button class="back" onclick={() => (feeding = false)}>BACK</button>
+    </div>
+  {:else}
+    <div class="buttons five">
+      <button class:dimmed={asleep} onclick={() => (feeding = true)}>FEED</button>
+      <button onclick={() => onAction('clean')}>CLEAN</button>
+      <button class:dimmed={asleep} onclick={() => onAction('play')}>PLAY</button>
+      <button class:active={!lightsOn} onclick={() => onAction('lights')}>{lightsOn ? 'LIGHTS' : 'LIGHTS ON'}</button>
+      <button class:alert={sick} onclick={() => onAction('meds')}>MEDS</button>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -54,26 +80,17 @@
     border-radius: 10px;
     padding: 10px;
   }
-  .meters {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px 14px;
-  }
+  .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
   .meter { display: flex; align-items: center; gap: 6px; }
   .label { font-family: var(--font-label); font-size: 9px; width: 34px; color: var(--phosphor-dim); }
   .bar { display: flex; gap: 2px; flex: 1; }
   .seg { flex: 1; height: 9px; background: #2a1512; }
   .seg.on { background: var(--phosphor); box-shadow: 0 0 4px rgba(255, 120, 40, 0.6); }
   .seg.on.low { background: var(--magenta); box-shadow: 0 0 4px rgba(255, 46, 136, 0.6); }
-  .sim {
-    position: absolute;
-    right: 0;
-    bottom: -2px;
-    font-family: var(--font-label);
-    font-size: 8px;
-    color: var(--phosphor-dim);
-  }
+  .status { display: flex; gap: 8px; justify-content: flex-end; align-items: center; font-family: var(--font-label); font-size: 9px; }
+  .alarm { color: var(--magenta); animation: blink 1s steps(2) infinite; }
+  .info { color: var(--cyan); }
+  .dim { color: var(--phosphor-dim); }
   .log {
     font-size: 18px;
     min-height: 20px;
@@ -85,7 +102,8 @@
   }
   .caret { animation: blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
-  .buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .buttons.five { grid-template-columns: repeat(5, 1fr); }
   button {
     min-height: 52px;
     font-family: var(--font-label);
@@ -98,5 +116,9 @@
     text-shadow: var(--glow);
   }
   button:active { transform: translateY(2px); border-bottom-width: 3px; }
+  button.dimmed { opacity: 0.5; }
   button.active { color: var(--cyan); border-color: #137a8c; text-shadow: 0 0 6px rgba(41, 240, 255, 0.5); }
+  button.alert { color: var(--magenta); border-color: #8a1450; }
+  button.back { color: var(--phosphor-dim); }
+  @media (prefers-reduced-motion: reduce) { .alarm, .caret { animation: none; } }
 </style>

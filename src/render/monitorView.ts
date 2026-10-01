@@ -10,7 +10,9 @@ import { hatchProgress, hatchStage, type HatchStage } from '../core/session';
 import { createDen, type Den } from './den';
 import { PixelPipeline, type PipelineSettings } from './pixelPipeline';
 import { buildCreature, type Creature } from './creature/buildCreature';
-import { PetController } from './creature/petController';
+import { PetController, type PetCondition } from './creature/petController';
+import type { FoodKind } from '../core/care';
+import type { Weather } from '../core/world';
 import { SPECIES_SCALE } from './creature/anatomy';
 import { Pod } from './pod';
 
@@ -49,6 +51,8 @@ export class MonitorView {
   private inspectAngle: number | null = null;
 
   onFps?: (fps: number) => void;
+  /** The player tapped the pet. */
+  onPetTap?: () => void;
   onPodTap?: (index: number) => void;
   onHatchStage?: (stage: HatchStage) => void;
   /** Fired once the creature has fully emerged and is live in the den. */
@@ -197,7 +201,9 @@ export class MonitorView {
       return;
     }
     this.frameFor(scale, animate);
+    this.den.setFrame(scale);
     this.controller = new PetController(creature, this.bounds, new Rng(`${genome.seed}:behaviour`));
+    this.controller.setCondition(this.condition);
   }
 
   private updateHatch(dt: number) {
@@ -273,6 +279,34 @@ export class MonitorView {
     this.den.setLights(on);
   }
 
+  private condition: PetCondition = { asleep: false, sick: false, vigor: 1 };
+
+  /** Push the care sim's view of the pet into the scene. */
+  setCare(c: PetCondition & { waste: number; lightsOn: boolean }) {
+    this.condition = { asleep: c.asleep, sick: c.sick, vigor: c.vigor };
+    this.controller?.setCondition(this.condition);
+    this.den.setWaste(c.waste);
+    this.den.setLights(c.lightsOn);
+  }
+
+  setWorld(hour: number, weather: Weather) {
+    this.den.setTime(hour, weather);
+  }
+
+  /** Fill the bowl and send the pet to eat it. */
+  feed(kind: FoodKind) {
+    this.den.setBowl(kind, 1);
+    this.controller?.goEat(this.den.bowlPos, (p) => this.den.setBowl(kind, 1 - p));
+  }
+
+  play() {
+    this.controller?.zoomies();
+  }
+
+  clean() {
+    this.den.setWaste(0);
+  }
+
   updateSettings(s: PipelineSettings) {
     const resChanged = s.lowHeight !== this.pipeline.settings.lowHeight;
     this.pipeline.settings = { ...s };
@@ -294,6 +328,11 @@ export class MonitorView {
       const targets = this.mode.pods.map((p) => p.hitTarget);
       const hit = this.raycaster.intersectObjects(targets, false)[0];
       if (hit) this.onPodTap?.(targets.indexOf(hit.object));
+      return;
+    }
+    if (this.creature && this.controller && this.raycaster.intersectObject(this.creature.mesh, false).length) {
+      this.controller.react(this.camera.position);
+      this.onPetTap?.();
       return;
     }
     const hit = new THREE.Vector3();

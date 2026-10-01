@@ -309,7 +309,7 @@ approves before the next one starts.
 | M1 ✅ | **Style test** | Den + pixel/CRT pipeline + one procedural Common cat, idle animation. **Look approved.** |
 | M2 ✅ | Genome & rarity | 4 species, variation, Uncommon minor mutations, names, rarity sim, seed gallery |
 | M3 ✅ | Pods & hatching | 3 pods with readouts & silhouettes, 4 hatch phases, 1-minute hatch, reveal |
-| M4 | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
+| M4 ✅ | Care loop | Needs, actions, sleep, sickness, offline catch-up, "while you were gone", save/export |
 | M5 | Life & death | Stages, care-shaped adult, elder, critical state, death, start over |
 | M6 | Polish | Audio, CRT transitions, install prompt, iPhone QA pass |
 
@@ -342,3 +342,41 @@ approves before the next one starts.
   (still no timer); the selected pod gets an acid-green outline (palette gains
   `acid` #6dff5a for in-world selection); pods no longer clip the mattress.
 - **Dev:** DBG → NEW GAME (PODS), SKIP HATCH.
+
+## Roadmap after M3 feedback (agreed)
+
+| # | Milestone |
+|---|-----------|
+| M4 ✅ | Care loop + real-time day/night & weather + sleep cycle + proper saves |
+| M5 | Life stages & death |
+| M6 | *(planning round first)* Pet stats + CREDS currency + "send it alone" street expeditions (districts, events, enemy animals generated from seeds, loot) + wounds & blood (with a "reduce gore" setting) |
+| M7 | Shop: den upgrades (cosmetic + modest care bonuses), food/meds, dealer pods |
+| M8 | "Jack in" active runs with turn-based combat |
+| M9 | New apartments, audio, polish |
+
+## M4 implementation notes
+
+- **Sim:** pure, deterministic, stepped per game minute (`src/core/care.ts`).
+  Offline time is caught up exactly on open (capped at 7 days).
+- **Rates (per hour):** hunger −7 awake / −2.5 asleep (×appetite from size,
+  bulk; dogs +10%); energy −6.5 awake / +15 asleep (½ with lights on); mood
+  −2.5 awake (+2 in the dark, +more when hungry/dirty/sick); hygiene −2 −6 per
+  waste pile. Health only drops under deprivation or sickness, recovers slowly
+  under good care. A neglected pet visibly declines within ~1.5 days.
+- **Sleep:** real clock. Cats/dogs sleep 23:00–07:00; **rats and raccoons are
+  nocturnal** (09:00–17:00). Very low energy triggers naps anytime.
+- **Waste & sickness:** food digests into waste piles (with flies); waste and
+  low hygiene raise the chance of sickness; MEDS cure (an unneeded dose hurts).
+- **Actions:** FEED (paste / scraps / treat; pet walks to the bowl and eats),
+  CLEAN, PLAY (zoomies), LIGHTS, MEDS, and **tap the pet** to pet it
+  (temperament decides the reaction).
+- **Bond** grows with timely care; care minutes (good vs. poor) are tracked for
+  the care-shaped adult form in M5.
+- **World:** real local time drives the sky (night → orange/magenta twilight →
+  smoggy daytime haze), sun patches on the floor by day, neon off by day;
+  daily weather (clear/drizzle/rain/fog) seeded by date.
+- **"While you were gone"** report on return (>10 min): need changes + a
+  timestamped, darkly funny event log.
+- **Saves:** IndexedDB with `navigator.storage.persist()`; **SYS** panel to
+  export/import a save code. Dev time scale (1×–3600×) runs the game clock
+  faster while the app is open; RESET CLOCK in DBG.
