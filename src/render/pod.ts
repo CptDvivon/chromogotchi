@@ -207,7 +207,8 @@ export class Pod {
     this.group.add(creature.group);
 
     this.fluidMat = new THREE.ShaderMaterial({
-      vertexShader: fluidVert, fragmentShader: fluidFrag, transparent: true, depthWrite: false,
+      // Writes depth so the selection outline behind the pod is hidden through the fluid.
+      vertexShader: fluidVert, fragmentShader: fluidFrag, transparent: true, depthWrite: true,
       uniforms: { level: { value: 1 }, time: { value: 0 }, agitation: { value: 0 }, tint: { value: new THREE.Color(PALETTE.bile) } },
     });
     this.fluid = new THREE.Mesh(geo(new THREE.CylinderGeometry(R - 0.005, R - 0.005, H, 18, 1)), this.fluidMat);
@@ -227,12 +228,14 @@ export class Pod {
     this.glass.renderOrder = 2;
     this.group.add(this.glass);
 
-    // Selection outline: a slightly larger back-faced shell around the whole pod.
-    this.outlineMat = new THREE.MeshBasicMaterial({ color: PALETTE.acid, side: THREE.BackSide });
+    // Selection outline: a slightly larger back-faced shell, drawn after the fluid
+    // so only a thin rim around the pod's silhouette shows.
+    this.outlineMat = new THREE.MeshBasicMaterial({ color: PALETTE.acid, side: THREE.BackSide, transparent: true });
     this.disposables.push(this.outlineMat);
     const shellH = BASE_H + H + 0.1;
-    this.outline = new THREE.Mesh(geo(new THREE.CylinderGeometry(R + 0.065, R + 0.072, shellH + 0.04, 18)), this.outlineMat);
+    this.outline = new THREE.Mesh(geo(new THREE.CylinderGeometry(R + 0.02, R + 0.022, shellH - 0.02, 18)), this.outlineMat);
     this.outline.position.y = shellH / 2;
+    this.outline.renderOrder = 3;
     this.outline.visible = false;
     this.group.add(this.outline);
   }
