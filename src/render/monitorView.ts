@@ -13,6 +13,7 @@ import { buildCreature, type Creature } from './creature/buildCreature';
 import { PetController, type PetCondition } from './creature/petController';
 import type { FoodKind } from '../core/care';
 import type { Weather } from '../core/world';
+import { PALETTE } from '../core/palette';
 import { SPECIES_SCALE } from './creature/anatomy';
 import { Pod } from './pod';
 
@@ -53,6 +54,8 @@ export class MonitorView {
   onFps?: (fps: number) => void;
   /** The player tapped the pet. */
   onPetTap?: () => void;
+  /** Called after every rendered frame (e.g. to position overlays). */
+  onFrame?: () => void;
   onPodTap?: (index: number) => void;
   onHatchStage?: (stage: HatchStage) => void;
   /** Fired once the creature has fully emerged and is live in the den. */
@@ -71,6 +74,8 @@ export class MonitorView {
     this.resize();
 
     canvas.addEventListener('pointerdown', this.onPointer);
+    canvas.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
     document.addEventListener('visibilitychange', this.onVisibility);
     this.start();
   }
@@ -126,6 +131,7 @@ export class MonitorView {
       this.creature = undefined;
     }
     this.controller = undefined;
+    this.stopLaser();
     this.mode = { kind: 'empty' };
     // A fresh room: no leftover waste, food or dimmed lights from a previous pet.
     this.den.setWaste(0);
@@ -287,25 +293,85 @@ export class MonitorView {
   private condition: PetCondition = { asleep: false, sick: false, vigor: 1 };
 
   /** Push the care sim's view of the pet into the scene. */
-  setCare(c: PetCondition & { waste: number; lightsOn: boolean }) {
+  setCare(c: PetCondition & {
+    waste: number; lightsOn: boolean; eating: boolean; bowl: { kind: FoodKind | null; amount: number };
+  }) {
     this.condition = { asleep: c.asleep, sick: c.sick, vigor: c.vigor };
     this.controller?.setCondition(this.condition);
+    this.controller?.setEating(c.eating, this.den.bowlPos);
     this.den.setWaste(c.waste);
     this.den.setLights(c.lightsOn);
+    this.den.setBowl(c.bowl.kind, c.bowl.amount);
   }
 
   setWorld(hour: number, weather: Weather) {
     this.den.setTime(hour, weather);
   }
 
-  /** Fill the bowl and send the pet to eat it. */
-  feed(kind: FoodKind) {
-    this.den.setBowl(kind, 1);
-    this.controller?.goEat(this.den.bowlPos, (p) => this.den.setBowl(kind, 1 - p));
+  // ------------------------------------------------------------ laser play
+
+  private laser?: { group: THREE.Group; pos: THREE.Vector3; goal: THREE.Vector3; until: number; steered: number; next: number };
+
+  /** A laser dot the pet chases; the player can drag it with a finger. */
+  play(seconds = 16) {
+    if (!this.controller || this.condition.asleep) return;
+    this.stopLaser();
+    const group = new THREE.Group();
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.018, 10), new THREE.MeshBasicMaterial({ color: PALETTE.magenta }));
+    dot.rotation.x = -Math.PI / 2;
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), new THREE.MeshBasicMaterial({
+      color: PALETTE.magenta, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glow.rotation.x = -Math.PI / 2;
+    group.add(dot, glow);
+    group.position.y = 0.004;
+    const start = this.creature!.group.position.clone().add(new THREE.Vector3(0.15, 0, 0.1));
+    group.position.x = start.x;
+    group.position.z = start.z;
+    this.den.scene.add(group);
+    this.laser = { group, pos: group.position, goal: start.clone(), until: this.time + seconds, steered: -10, next: 0 };
+    this.controller.chase(() => this.laser?.pos ?? this.creature!.group.position, seconds);
   }
 
-  play() {
-    this.controller?.zoomies();
+  private stopLaser() {
+    if (!this.laser) return;
+    this.laser.group.removeFromParent();
+    this.laser.group.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
+    this.laser = undefined;
+  }
+
+  private updateLaser(dt: number) {
+    const l = this.laser;
+    if (!l) return;
+    if (this.time > l.until || this.condition.asleep) {
+      this.stopLaser();
+      return;
+    }
+    // Wander erratically unless the player steered it recently.
+    if (this.time - l.steered > 1.5 && this.time > l.next) {
+      const b = this.bounds;
+      l.goal.set(b.minX + Math.random() * (b.maxX - b.minX), 0, b.minZ + Math.random() * (b.maxZ - b.minZ));
+      l.next = this.time + 0.5 + Math.random() * 1.2;
+    }
+    l.pos.x += (l.goal.x - l.pos.x) * Math.min(1, dt * 6);
+    l.pos.z += (l.goal.z - l.pos.z) * Math.min(1, dt * 6);
+    l.group.visible = Math.random() > 0.04; // cheap laser flicker
+  }
+
+  /** Where the pet's head is on screen (CSS px within the canvas), for the thought bubble. */
+  headScreenPos(): { x: number; y: number } | null {
+    if (!this.creature || this.mode.kind !== 'den') return null;
+    const h = this.creature.anatomy.head;
+    const p = new THREE.Vector3(h[0], h[1] + 0.09, h[2]);
+    this.creature.group.localToWorld(p);
+    p.project(this.camera);
+    if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return null;
+    return { x: ((p.x + 1) / 2) * this.canvas.clientWidth, y: ((1 - p.y) / 2) * this.canvas.clientHeight };
   }
 
   clean() {
@@ -325,10 +391,41 @@ export class MonitorView {
     this.camera.updateProjectionMatrix();
   }
 
-  private onPointer = (e: PointerEvent) => {
+  private floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private pointerDown = false;
+
+  /** While playing, dragging on the monitor steers the laser dot. */
+  private steerLaser(e: PointerEvent): boolean {
+    if (!this.laser) return false;
+    const hit = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectPlane(this.floor, hit)) return false;
+    const b = this.bounds;
+    this.laser.goal.set(THREE.MathUtils.clamp(hit.x, b.minX - 0.1, b.maxX + 0.1), 0, THREE.MathUtils.clamp(hit.z, b.minZ - 0.1, b.maxZ + 0.25));
+    this.laser.steered = this.time;
+    void e;
+    return true;
+  }
+
+  private setRay(e: PointerEvent) {
     const r = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
+  }
+
+  private onPointerMove = (e: PointerEvent) => {
+    if (!this.pointerDown || !this.laser) return;
+    this.setRay(e);
+    this.steerLaser(e);
+  };
+
+  private onPointerUp = () => {
+    this.pointerDown = false;
+  };
+
+  private onPointer = (e: PointerEvent) => {
+    this.pointerDown = true;
+    this.setRay(e);
+    if (this.steerLaser(e)) return;
     if (this.mode.kind === 'pods') {
       const targets = this.mode.pods.map((p) => p.hitTarget);
       const hit = this.raycaster.intersectObjects(targets, false)[0];
@@ -367,7 +464,9 @@ export class MonitorView {
       }
       this.updateHatch(step);
       for (const p of this.leftovers) p.update(step, this.time, false, 1, 'emergence');
+      this.updateLaser(step);
       this.controller?.update(step);
+      this.onFrame?.();
       this.den.update(this.time);
       this.updateCamera(step);
       this.pipeline.render(this.den.scene, this.camera, this.time);
@@ -391,6 +490,8 @@ export class MonitorView {
     this.stop();
     this.resizeObs.disconnect();
     this.canvas.removeEventListener('pointerdown', this.onPointer);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.clear();
     this.pipeline.dispose();

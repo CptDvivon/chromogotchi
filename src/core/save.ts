@@ -2,7 +2,7 @@
 // copy-paste export code as a manual backup.
 
 import { get, set } from 'idb-keyval';
-import { newPetState } from './care';
+import { newPetState, upgradePetState } from './care';
 import { newGame, type GameState } from './session';
 
 export interface SaveData {
@@ -26,7 +26,7 @@ export function normalize(data: unknown): SaveData | null {
   // M3 stored the bare GameState in localStorage.
   const game = (d.game ?? (d.phase ? d : null)) as GameState | null;
   if (!game || !['select', 'hatching', 'den'].includes(game.phase)) return null;
-  if (game.phase === 'den' && !game.pet) game.pet = newPetState(Date.now());
+  if (game.phase === 'den') game.pet = game.pet ? upgradePetState(game.pet) : newPetState(Date.now());
   return { v: 1, game, clockSkew: typeof d.clockSkew === 'number' ? d.clockSkew : 0 };
 }
 

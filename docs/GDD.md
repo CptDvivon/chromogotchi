@@ -380,3 +380,22 @@ approves before the next one starts.
 - **Saves:** IndexedDB with `navigator.storage.persist()`; **SYS** panel to
   export/import a save code. Dev time scale (1×–3600×) runs the game clock
   faster while the app is open; RESET CLOCK in DBG.
+
+## Care feedback round (after M4)
+
+- **Bowl-based eating:** FEED only fills the bowl (one portion). The pet
+  decides when to eat — very likely when hungry, rarely when full; greedy
+  species (raccoon > dog > rat > cat) also eat and crave food on a full belly.
+  NUTR rises bite by bite while it eats (a full bowl takes ~2 game minutes).
+  Works offline and while asleep (it eats after waking).
+- **Play:** a magenta laser dot the pet chases and pounces on for ~16 s;
+  drag on the monitor to steer it. 20-minute cooldown (shown on the button).
+  Petting has a 20-second cooldown.
+- **Wants (thought bubble):** at most one at a time, formed from needs *and*
+  personality — food, treat, sleep, lights off, play, affection, clean, meds.
+  A lazy pet wants to sleep with energy to spare; a greedy one wants food when
+  full. Meeting a want: +8 mood, +bond. Ignored wants slowly sour mood and
+  expire after 3 h (−5 mood, −bond, logged in the report). A pet that wants
+  to sleep naps as soon as the lights go off (at least 90 min).
+- **Mood = happiness gauge:** centred bar — BROKEN · SULLEN · STABLE ·
+  CONTENT · ELATED.

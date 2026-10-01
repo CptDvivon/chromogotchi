@@ -1,6 +1,6 @@
 // "While you were gone": turns care events into a terse, darkly funny log.
 
-import type { CareEvent, CareEventKind, Needs } from './care';
+import type { CareEvent, CareEventKind, Needs, WantKind } from './care';
 import { Rng } from './rng';
 
 const LINES: Record<CareEventKind, string[]> = {
@@ -14,6 +14,21 @@ const LINES: Record<CareEventKind, string[]> = {
   exhausted: ['Subject running on fumes.', 'Subject too tired to stand.'],
   miserable: ['Subject sulking in the corner.', 'Subject stopped responding to its name.'],
   critical: ['VITALS CRITICAL. Intervention required.', 'Subject failing. Intervention required.'],
+  ate: ['Subject ate from the bowl.', 'Subject wolfed down the bowl.'],
+  finishedBowl: ['Bowl licked clean.'],
+  wanted: [],
+  wantIgnored: [],
+};
+
+const IGNORED: Record<WantKind, string> = {
+  food: 'Subject begged for food. Nobody came.',
+  treat: 'Subject craved a treat. Craving denied.',
+  sleep: 'Subject wanted the lights off to nap. Ignored.',
+  dark: 'Subject tried to sleep under the glare.',
+  play: 'Subject wanted to play. Gave up waiting.',
+  affection: 'Subject waited to be touched. Nothing.',
+  clean: 'Subject pawed at its own filth, disgusted.',
+  meds: 'Subject wanted relief. Still suffering.',
 };
 
 export interface ReportLine { at: number; text: string }
@@ -25,6 +40,11 @@ export function buildReport(events: CareEvent[], seed: string): ReportLine[] {
   for (const e of events) {
     if (e.kind === 'pooped') {
       poops++;
+      continue;
+    }
+    if (e.kind === 'wanted' || e.kind === 'finishedBowl') continue;
+    if (e.kind === 'wantIgnored') {
+      lines.push({ at: e.at, text: IGNORED[e.want ?? 'food'] });
       continue;
     }
     lines.push({ at: e.at, text: rng.pick(LINES[e.kind]) });

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { FoodKind, Needs } from '../core/care';
+  import MoodGauge from './MoodGauge.svelte';
   import type { CareAction } from './types';
 
   interface Props {
@@ -7,18 +8,20 @@
     asleep: boolean;
     sick: boolean;
     lightsOn: boolean;
+    eating: boolean;
+    bowl: { kind: FoodKind | null; amount: number };
+    playWait: number;
     log: string;
     onFeed: (kind: FoodKind) => void;
     onAction: (a: CareAction) => void;
   }
-  let { needs, asleep, sick, lightsOn, log, onFeed, onAction }: Props = $props();
+  let { needs, asleep, sick, lightsOn, eating, bowl, playWait, log, onFeed, onAction }: Props = $props();
   let feeding = $state(false);
 
   const meters = $derived([
     { label: 'NUTR', value: needs.hunger },
     { label: 'HYGN', value: needs.hygiene },
     { label: 'ENRG', value: needs.energy },
-    { label: 'MOOD', value: needs.mood },
     { label: 'VITL', value: needs.health },
   ]);
   const critical = $derived(needs.health < 15);
@@ -41,7 +44,10 @@
         </span>
       </div>
     {/each}
+    <MoodGauge mood={needs.mood} />
     <div class="status">
+      <span class="dim">BOWL {bowl.kind ? `${bowl.kind.toUpperCase()} ${Math.round(bowl.amount * 100)}%` : 'EMPTY'}</span>
+      {#if eating}<span class="info">EATING</span>{/if}
       {#if critical}<span class="alarm">CRITICAL</span>{/if}
       {#if sick}<span class="alarm">SICK</span>{/if}
       {#if asleep}<span class="info">ASLEEP</span>{/if}
@@ -60,9 +66,11 @@
     </div>
   {:else}
     <div class="buttons five">
-      <button class:dimmed={asleep} onclick={() => (feeding = true)}>FEED</button>
+      <button onclick={() => (feeding = true)}>FEED</button>
       <button onclick={() => onAction('clean')}>CLEAN</button>
-      <button class:dimmed={asleep} onclick={() => onAction('play')}>PLAY</button>
+      <button class:dimmed={asleep || playWait > 0} onclick={() => onAction('play')}>
+        PLAY{#if playWait > 0}<small>{playWait}M</small>{/if}
+      </button>
       <button class:active={!lightsOn} onclick={() => onAction('lights')}>{lightsOn ? 'LIGHTS' : 'LIGHTS ON'}</button>
       <button class:alert={sick} onclick={() => onAction('meds')}>MEDS</button>
     </div>
@@ -87,7 +95,7 @@
   .seg { flex: 1; height: 9px; background: #2a1512; }
   .seg.on { background: var(--phosphor); box-shadow: 0 0 4px rgba(255, 120, 40, 0.6); }
   .seg.on.low { background: var(--magenta); box-shadow: 0 0 4px rgba(255, 46, 136, 0.6); }
-  .status { display: flex; gap: 8px; justify-content: flex-end; align-items: center; font-family: var(--font-label); font-size: 9px; }
+  .status { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; align-items: center; font-family: var(--font-label); font-size: 9px; }
   .alarm { color: var(--magenta); animation: blink 1s steps(2) infinite; }
   .info { color: var(--cyan); }
   .dim { color: var(--phosphor-dim); }
@@ -117,6 +125,7 @@
   }
   button:active { transform: translateY(2px); border-bottom-width: 3px; }
   button.dimmed { opacity: 0.5; }
+  button small { display: block; font-size: 9px; color: var(--phosphor-dim); }
   button.active { color: var(--cyan); border-color: #137a8c; text-shadow: 0 0 6px rgba(41, 240, 255, 0.5); }
   button.alert { color: var(--magenta); border-color: #8a1450; }
   button.back { color: var(--phosphor-dim); }

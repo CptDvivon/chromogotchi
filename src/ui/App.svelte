@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { CONFIG } from '../core/config';
   import {
-    clean, feed, medicate, newPetState, pet as petAction, play, setLights, simulate,
-    type ActionResult, type CareEvent, type FoodKind, type Needs, type PetState,
+    clean, feed, medicate, newPetState, pet as petAction, play, playCooldown, setLights, simulate,
+    type ActionResult, type CareEvent, type FoodKind, type Needs, type PetState, type WantKind,
   } from '../core/care';
   import type { Genome } from '../core/genome';
   import { SOURCES } from '../core/mutations';
@@ -20,6 +20,7 @@
   import ReportCard from './ReportCard.svelte';
   import SysPanel from './SysPanel.svelte';
   import type { CareAction } from './types';
+  import WantIcon from './WantIcon.svelte';
   import { dev, pipeline, save } from './state.svelte';
 
   let canvas: HTMLCanvasElement;
@@ -38,7 +39,12 @@
   let sysOpen = $state(false);
   let report: { awayMs: number; lines: ReportLine[]; deltas: { key: keyof Needs; delta: number }[] } | null = $state(null);
   /** Snapshot of the pet for the UI (refreshed every tick and after actions). */
-  let snap = $state({ needs: { hunger: 0, hygiene: 0, energy: 0, mood: 0, health: 0 } as Needs, asleep: false, sick: false, lightsOn: true });
+  let snap = $state({
+    needs: { hunger: 0, hygiene: 0, energy: 0, mood: 0, health: 0 } as Needs,
+    asleep: false, sick: false, lightsOn: true, eating: false,
+    bowl: { kind: null as FoodKind | null, amount: 0 }, playWait: 0, want: null as WantKind | null,
+  });
+  let bubbleEl: HTMLDivElement | undefined = $state();
 
   const now = () => Date.now() + data.clockSkew;
   const petState = (): PetState | undefined => (data.game.phase === 'den' ? data.game.pet : undefined);
@@ -56,7 +62,10 @@
   function refresh() {
     const p = petState();
     if (!p) return;
-    snap = { needs: { ...p.needs }, asleep: p.asleep, sick: p.sick, lightsOn: p.lightsOn };
+    snap = {
+      needs: { ...p.needs }, asleep: p.asleep, sick: p.sick, lightsOn: p.lightsOn, eating: p.eating,
+      bowl: { ...p.bowl }, playWait: playCooldown(p, now()), want: p.want?.kind ?? null,
+    };
     const n = p.needs;
     view?.setCare({
       asleep: p.asleep,
@@ -64,6 +73,8 @@
       vigor: Math.max(0, Math.min(1, (Math.min(n.energy, n.hunger, n.health) - 5) / 45)),
       waste: p.waste,
       lightsOn: p.lightsOn,
+      eating: p.eating,
+      bowl: p.bowl,
     });
   }
 
@@ -72,6 +83,9 @@
     napped: 'SUBJECT COLLAPSED INTO A NAP',
     wokeUp: 'SUBJECT AWAKE',
     pooped: 'WASTE DEPOSITED // CLEAN REQUIRED',
+    ate: 'SUBJECT EATING',
+    finishedBowl: 'BOWL EMPTY',
+    wantIgnored: 'SUBJECT GAVE UP WAITING',
     gotSick: 'INFECTION DETECTED // MEDS REQUIRED',
     starving: 'NUTRITION CRITICAL',
     filthy: 'HYGIENE CRITICAL',
@@ -157,9 +171,7 @@
   function onFeed(kind: FoodKind) {
     const p = petState();
     if (!p) return;
-    const r = feed(p, kind);
-    if (r.ok) view?.feed(kind);
-    result(r);
+    result(feed(p, kind));
   }
 
   function onAction(a: CareAction) {
@@ -170,12 +182,11 @@
       if (r.ok) view?.clean();
       result(r);
     } else if (a === 'play') {
-      const r = play(p, genome);
+      const r = play(p, genome, now());
       if (r.ok) view?.play();
       result(r);
     } else if (a === 'lights') {
-      setLights(p, !p.lightsOn);
-      result({ ok: true, message: p.lightsOn ? 'LIGHTS ON' : 'LIGHTS OFF // ROOM DIMMED' });
+      result({ ok: true, message: setLights(p, !p.lightsOn) });
     } else {
       result(medicate(p));
     }
@@ -189,7 +200,17 @@
     view.onHatchStage = (s) => (stage = s);
     view.onPetTap = () => {
       const p = petState();
-      if (p && genome) result(petAction(p, genome));
+      if (p && genome) result(petAction(p, genome, now()));
+    };
+    view.onFrame = () => {
+      if (!bubbleEl) return;
+      const pos = snap.want && game.phase === 'den' && !report && !reveal ? view!.headScreenPos() : null;
+      if (pos) {
+        bubbleEl.style.display = 'block';
+        bubbleEl.style.transform = `translate(${pos.x}px, ${pos.y}px) translate(-50%, -100%)`;
+      } else {
+        bubbleEl.style.display = 'none';
+      }
     };
     view.onHatched = (g) => {
       genome = g;
@@ -301,6 +322,10 @@
         <span>{genome.species.toUpperCase()} // <span class="tier {genome.tier}">{genome.tier.toUpperCase()}</span>{snap.asleep ? ' // ZZZ' : ''}</span>
       {/if}
     </div>
+    <div class="bubble" bind:this={bubbleEl} aria-label="The pet wants {snap.want ?? 'nothing'}">
+      {#if snap.want}<WantIcon kind={snap.want} />{/if}
+      <span class="tail"></span>
+    </div>
     {#if report && game.phase === 'den'}
       <ReportCard awayMs={report.awayMs} lines={report.lines} deltas={report.deltas} onClose={() => (report = null)} />
     {/if}
@@ -321,7 +346,10 @@
   {:else if game.phase === 'hatching'}
     <HatchDeck {stage} podId={game.seed.slice(-4)} />
   {:else}
-    <ControlDeck needs={snap.needs} asleep={snap.asleep} sick={snap.sick} lightsOn={snap.lightsOn} {log} {onFeed} {onAction} />
+    <ControlDeck
+      needs={snap.needs} asleep={snap.asleep} sick={snap.sick} lightsOn={snap.lightsOn}
+      eating={snap.eating} bowl={snap.bowl} playWait={snap.playWait} {log} {onFeed} {onAction}
+    />
   {/if}
 
   {#if sysOpen}
@@ -439,6 +467,32 @@
   .tier.uncommon { color: var(--cyan); text-shadow: 0 0 6px rgba(41, 240, 255, 0.5); }
   .tier.rare, .tier.epic { color: var(--magenta); text-shadow: 0 0 6px rgba(255, 46, 136, 0.5); }
   .tier.legendary, .tier.mythical { color: var(--white-hot); text-shadow: 0 0 8px rgba(255, 246, 224, 0.7); }
+  .bubble {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: none;
+    padding: 5px;
+    background: rgba(11, 7, 8, 0.85);
+    border: 2px solid var(--phosphor);
+    border-radius: 10px;
+    box-shadow: 0 0 8px rgba(255, 120, 40, 0.4);
+    pointer-events: none;
+    line-height: 0;
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  .bubble .tail {
+    position: absolute;
+    left: 50%;
+    bottom: -9px;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    background: var(--phosphor);
+    border-radius: 50%;
+  }
+  @keyframes bob { 50% { margin-top: -4px; } }
+  @media (prefers-reduced-motion: reduce) { .bubble { animation: none; } }
   .rec { color: var(--magenta); animation: blink 1.6s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .rec { animation: none; } .reveal { animation: none; } }

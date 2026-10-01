@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import type { Rng } from '../../core/rng';
 import type { Creature } from './buildCreature';
 
-type Mode = 'idle' | 'turn' | 'walk' | 'eat';
+type Mode = 'idle' | 'turn' | 'walk' | 'eat' | 'chase';
 
 /** What the care sim says about the pet right now. */
 export interface PetCondition {
@@ -41,7 +41,12 @@ export class PetController {
   private rest = 0;
   private zoomLeft = 0;
   private hop = -1;
-  private meal?: { bowl: THREE.Vector3; onProgress: (p: number) => void; t: number };
+  private meal?: { bowl: THREE.Vector3 };
+  private chaseTarget?: () => THREE.Vector3;
+  private chaseUntil = 0;
+  /** 0..1 crouch before a pounce. */
+  private crouch = 0;
+  private pounceT = -1;
 
   constructor(
     private creature: Creature,
@@ -72,16 +77,36 @@ export class PetController {
     this.lookUntil = this.time + seconds;
   }
 
-  /** Walk to the bowl and eat; reports eating progress 0..1. */
-  goEat(bowl: THREE.Vector3, onProgress: (p: number) => void) {
+  /** The sim decides when the pet eats: walk to the bowl and stay until told to stop. */
+  setEating(on: boolean, bowl: THREE.Vector3) {
+    if (on && !this.meal && !this.condition.asleep) {
+      this.meal = { bowl: bowl.clone() };
+      this.zoomLeft = 0;
+      this.chaseTarget = undefined;
+      const g = this.creature.group.position;
+      const away = new THREE.Vector3(g.x - bowl.x, 0, g.z - bowl.z).normalize();
+      const reach = this.creature.anatomy.head[2] * this.scale + 0.05 * this.scale;
+      this.target.set(bowl.x + away.x * reach, 0, bowl.z + away.z * reach);
+      this.setMode('turn');
+    } else if (!on && this.meal) {
+      this.meal = undefined;
+      this.setMode('idle');
+      this.idleFor = this.rng.range(1, 3);
+    }
+  }
+
+  get isEating(): boolean {
+    return this.mode === 'eat';
+  }
+
+  /** Chase a moving point (the laser dot) for a while, pouncing when close. */
+  chase(target: () => THREE.Vector3, seconds: number) {
     if (this.condition.asleep) return;
-    this.meal = { bowl: bowl.clone(), onProgress, t: 0 };
+    this.meal = undefined;
     this.zoomLeft = 0;
-    const g = this.creature.group.position;
-    const away = new THREE.Vector3(g.x - bowl.x, 0, g.z - bowl.z).normalize();
-    const reach = this.creature.anatomy.head[2] * this.scale + 0.05 * this.scale;
-    this.target.set(bowl.x + away.x * reach, 0, bowl.z + away.z * reach);
-    this.setMode('turn');
+    this.chaseTarget = target;
+    this.chaseUntil = this.time + seconds;
+    this.setMode('chase');
   }
 
   /** A burst of frantic running around. */
@@ -106,7 +131,8 @@ export class PetController {
     const g = this.creature.group;
     const b = this.creature.bones;
     const c = this.condition;
-    const zoom = this.zoomLeft > 0 ? 2.6 : 1;
+    const chasing = this.mode === 'chase';
+    const zoom = this.zoomLeft > 0 || chasing ? 2.6 : 1;
     const speed = 0.2 * this.scale * (0.45 + 0.55 * c.vigor) * (c.sick ? 0.7 : 1) * zoom;
     let moving = 0;
 
@@ -138,18 +164,48 @@ export class PetController {
         }
       }
       if (this.mode === 'eat' && this.meal) {
-        // Face the bowl, head down, chew.
+        // Face the bowl, head down, chew — until the sim says the meal is over.
         const m = this.meal;
         const want = Math.atan2(m.bowl.x - g.position.x, m.bowl.z - g.position.z);
         let diff = want - g.rotation.y;
         diff = Math.atan2(Math.sin(diff), Math.cos(diff));
         g.rotation.y += diff * Math.min(1, dt * 4);
-        m.t += dt;
-        m.onProgress(Math.min(1, m.t / 5));
-        if (m.t >= 5) {
-          this.meal = undefined;
+      }
+      if (chasing && this.chaseTarget) {
+        const tgt = this.chaseTarget();
+        const dx = tgt.x - g.position.x, dz = tgt.z - g.position.z;
+        const dist = Math.hypot(dx, dz);
+        const reach = this.creature.anatomy.head[2] * this.scale * 1.1;
+        const want = Math.atan2(dx, dz);
+        let diff = want - g.rotation.y;
+        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        g.rotation.y += Math.sign(diff) * Math.min(Math.abs(diff), dt * 6);
+        if (this.pounceT >= 0) {
+          // Crouch, then spring at the dot.
+          this.pounceT += dt;
+          if (this.pounceT < 0.3) this.crouch = Math.min(1, this.pounceT / 0.2);
+          else {
+            if (this.hop < 0 && this.pounceT < 0.4) this.hop = 0;
+            this.crouch = 0;
+            const lunge = Math.min(dist, speed * 1.5 * dt);
+            g.position.x += Math.sin(g.rotation.y) * lunge;
+            g.position.z += Math.cos(g.rotation.y) * lunge;
+            if (this.pounceT > 0.75) this.pounceT = -1;
+          }
+        } else if (dist > reach) {
+          const step = Math.min(dist - reach * 0.8, speed * dt) * (Math.abs(diff) < 1.2 ? 1 : 0.2);
+          g.position.x += Math.sin(g.rotation.y) * step;
+          g.position.z += Math.cos(g.rotation.y) * step;
+          moving = 1;
+        } else if (this.rng.chance(dt * 2.5)) {
+          this.pounceT = 0;
+        }
+        if (this.time > this.chaseUntil) {
+          this.chaseTarget = undefined;
+          this.crouch = 0;
+          this.pounceT = -1;
           this.setMode('idle');
-          this.idleFor = this.rng.range(2, 5);
+          this.idleFor = this.rng.range(3, 6);
         }
       }
     }
@@ -171,9 +227,10 @@ export class PetController {
     const restY = this.creature.anatomy.bones[1].pos[1];
     let y = restY + (moving ? Math.abs(Math.sin(this.phase * Math.PI * 2)) * 0.006 : 0);
     y -= this.rest * restY * 0.55;
+    y -= this.crouch * restY * 0.25;
     if (this.hop >= 0) {
       this.hop += dt;
-      y += Math.sin(Math.min(1, this.hop / 0.35) * Math.PI) * 0.03;
+      y += Math.sin(Math.min(1, this.hop / 0.35) * Math.PI) * (chasing ? 0.05 : 0.03);
       if (this.hop > 0.35) this.hop = -1;
     }
     b.body.position.y = y;
@@ -195,6 +252,11 @@ export class PetController {
     let yaw = 0, pitch = 0;
     if (this.mode === 'eat') {
       pitch = 0.75 + Math.sin(this.time * 8) * 0.1;
+    } else if (chasing && this.chaseTarget) {
+      const local = this.creature.group.worldToLocal(this.chaseTarget().clone());
+      const h = this.creature.anatomy.head;
+      yaw = Math.atan2(local.x - h[0], local.z - h[2]);
+      pitch = 0.35 + this.crouch * 0.2;
     } else if (this.lookTarget && this.time < this.lookUntil) {
       const local = this.creature.group.worldToLocal(this.lookTarget.clone());
       const h = this.creature.anatomy.head;
