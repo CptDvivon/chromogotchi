@@ -34,7 +34,15 @@
     <button onclick={doExport}>EXPORT SAVE</button>
     <button onclick={doImport} disabled={!code.trim()}>IMPORT SAVE</button>
   </div>
-  <textarea bind:value={code} rows="5" spellcheck="false" placeholder="PASTE A SAVE CODE HERE"></textarea>
+  <textarea
+    bind:value={code}
+    rows="5"
+    spellcheck="false"
+    autocapitalize="off"
+    autocomplete="off"
+    placeholder="PASTE A SAVE CODE HERE"
+    {...{ autocorrect: 'off' }}
+  ></textarea>
   {#if msg}<div class="msg">{msg}</div>{/if}
 </div>
 

@@ -69,11 +69,16 @@ export function exportSave(data: SaveData): string {
   return EXPORT_PREFIX + btoa(String.fromCharCode(...new TextEncoder().encode(json)));
 }
 
+/**
+ * Forgiving import: the prefix may have been re-cased (iOS keyboards, notes
+ * apps) and the code may be wrapped in quotes, spaces or line breaks.
+ */
 export function importSave(code: string): SaveData | null {
-  const trimmed = code.trim();
-  if (!trimmed.startsWith(EXPORT_PREFIX)) return null;
+  const at = code.toUpperCase().indexOf(EXPORT_PREFIX);
+  if (at < 0) return null;
+  const body = code.slice(at + EXPORT_PREFIX.length).replace(/[^A-Za-z0-9+/=]/g, '');
   try {
-    const bin = atob(trimmed.slice(EXPORT_PREFIX.length));
+    const bin = atob(body);
     const json = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
     return normalize(JSON.parse(json));
   } catch {

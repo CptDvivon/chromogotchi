@@ -10,6 +10,13 @@ describe('save export/import', () => {
     expect(importSave(code)).toEqual(data);
   });
 
+  it('tolerates a re-cased prefix, quotes and whitespace', () => {
+    const data = { v: 1 as const, game: { phase: 'den' as const, seed: 'ABC', hatchedAt: 1, pet: newPetState(5) }, clockSkew: 0 };
+    const code = exportSave(data);
+    const messy = `“chromo1:${code.slice(8, 40)}\n ${code.slice(40)}”`;
+    expect(importSave(messy)).toEqual(data);
+  });
+
   it('rejects garbage', () => {
     expect(importSave('hello')).toBeNull();
     expect(importSave('CHROMO1:!!!')).toBeNull();
