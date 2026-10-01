@@ -28,6 +28,7 @@ export const PALETTE = {
   magentaDeep: '#8a1450',
   cyan: '#29f0ff',
   cyanDeep: '#137a8c',
+  acid: '#6dff5a',
   whiteHot: '#fff6e0',
   night: '#2a2438',
 } as const;

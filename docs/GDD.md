@@ -338,4 +338,7 @@ approves before the next one starts.
   room light stutters and the camera shakes, then the seal bursts (shards,
   steam, lid pops) and the creature unfolds onto the floor at full size.
 - **Reveal card:** "SUBJECT VIABLE", designation, name, species, tier.
+- **Feedback round 1:** hatch deck shows `PHASE n/4 // NAME` with four pips
+  (still no timer); the selected pod gets an acid-green outline (palette gains
+  `acid` #6dff5a for in-world selection); pods no longer clip the mattress.
 - **Dev:** DBG → NEW GAME (PODS), SKIP HATCH.

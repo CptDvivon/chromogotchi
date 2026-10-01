@@ -167,11 +167,11 @@ export function createDen(): Den {
 
   // Mattress with a filthy blanket.
   const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 1.2), lambert({ color: PALETTE.concrete }));
-  mattress.position.set(0.8, 0.06, -0.25);
+  mattress.position.set(0.93, 0.06, -0.25);
   mattress.castShadow = mattress.receiveShadow = true;
   scene.add(mattress);
   const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.6), lambert({ color: PALETTE.rust }));
-  blanket.position.set(0.76, 0.135, 0.0);
+  blanket.position.set(0.88, 0.135, 0.0);
   blanket.rotation.y = 0.15;
   blanket.castShadow = blanket.receiveShadow = true;
   scene.add(blanket);

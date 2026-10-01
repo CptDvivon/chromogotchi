@@ -137,6 +137,9 @@ export class Pod {
   private topCap: THREE.Group;
   private lamp?: THREE.Mesh;
   private shards: Shard[] = [];
+  /** Acid-green outline shown around the selected pod. */
+  private outline: THREE.Mesh;
+  private outlineMat: THREE.MeshBasicMaterial;
   private steam: THREE.Sprite[] = [];
   private rng: Rng;
   private disposables: { dispose(): void }[] = [];
@@ -223,6 +226,15 @@ export class Pod {
     this.glass.position.y = BASE_H + H / 2;
     this.glass.renderOrder = 2;
     this.group.add(this.glass);
+
+    // Selection outline: a slightly larger back-faced shell around the whole pod.
+    this.outlineMat = new THREE.MeshBasicMaterial({ color: PALETTE.acid, side: THREE.BackSide });
+    this.disposables.push(this.outlineMat);
+    const shellH = BASE_H + H + 0.1;
+    this.outline = new THREE.Mesh(geo(new THREE.CylinderGeometry(R + 0.065, R + 0.072, shellH + 0.04, 18)), this.outlineMat);
+    this.outline.position.y = shellH / 2;
+    this.outline.visible = false;
+    this.group.add(this.outline);
   }
 
   /** Darken the creature into a silhouette (and hide its eyes) while inside. */
@@ -257,6 +269,8 @@ export class Pod {
     this.glassMat.uniforms.time.value = time;
     this.fluidMat.uniforms.time.value = time;
     this.glassMat.uniforms.highlight.value = selected ? 1 : 0;
+    this.outline.visible = selected;
+    this.outlineMat.color.set(PALETTE.acid).multiplyScalar(0.75 + 0.25 * Math.sin(time * 5));
     if (this.lamp) this.lamp.visible = Math.sin(time * 5) > 0;
 
     if (!this.burst) {

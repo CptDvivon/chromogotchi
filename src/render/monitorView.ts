@@ -15,7 +15,8 @@ import { SPECIES_SCALE } from './creature/anatomy';
 import { Pod } from './pod';
 
 const FRAME = 1 / 30;
-const POD_X = [-0.4, 0, 0.4];
+// Kept clear of the mattress (left edge x ≈ 0.58) and the crate.
+const POD_X = [-0.4, -0.02, 0.36];
 const POD_Z = -0.25;
 
 type Mode =

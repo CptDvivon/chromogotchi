@@ -44,6 +44,7 @@
         if (beatPhase > 1) beatPhase -= 1;
         const v = wave(beatPhase) + (Math.random() - 0.5) * noise;
         const y = h * 0.62 - v * h * 0.5;
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#0b0708';
         ctx.fillRect(x, 0, 6 * dpr, h);
         ctx.strokeStyle = '#ff8c32';
